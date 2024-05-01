@@ -1,0 +1,23 @@
+{
+  "name": "tromero_tailor",
+  "version": "1.0.0",
+  "description": "NPM package to conveniently integrate the Tromero Tailor service with your Javascript or Typescript application",
+  "main": "index.js",
+  "scripts": {
+    "test": "jest"
+  },
+  "keywords": [
+    "tromero",
+    "tailor",
+    "ai",
+    "fine-tuning",
+    "finetuning",
+    "inference"
+  ],
+  "author": "Michael Epelboim",
+  "license": "MIT",
+  "devDependencies": {
+    "ts-node": "^10.9.2",
+    "typescript": "^5.4.5"
+  }
+}
