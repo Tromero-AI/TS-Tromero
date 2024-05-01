@@ -2,9 +2,15 @@
   "name": "tromero_tailor",
   "version": "1.0.0",
   "description": "NPM package to conveniently integrate the Tromero Tailor service with your Javascript or Typescript application",
-  "main": "index.js",
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
   "scripts": {
-    "test": "jest"
+    "test": "jest",
+    "build": "tsup"
   },
   "keywords": [
     "tromero",
