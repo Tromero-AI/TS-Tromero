@@ -21,7 +21,7 @@ interface CompletionResponse {
 }
 
 class MockCompletions extends Completions {
-  client: any; // Define the correct type
+  client: any;
 
   constructor(client: any) {
     super(client);
