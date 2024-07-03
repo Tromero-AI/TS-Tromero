@@ -1,5 +1,46 @@
-// Define the Message class
-class Message {
+export interface Message {
+  role: string;
+  content: string;
+}
+
+export interface Choice {
+  message: Message;
+}
+
+export interface CompletionResponse {
+  choices: Choice[];
+  usage?: any;
+}
+
+export interface Model {
+  id: string;
+}
+
+export interface SaveData {
+  messages: Message[];
+  model: string;
+  kwargs: any;
+  creation_time: string;
+  tags: string;
+  usage?: any;
+}
+
+export interface Client {
+  modelUrls: { [key: string]: string };
+  isBaseModel: { [key: string]: boolean };
+  tromero_key: string;
+  saveData: boolean;
+}
+
+export type StreamResponse = AsyncIterable<{
+  choices: { delta: { content: string } }[];
+}>;
+
+export interface TromeroCreateResponse {
+  generated_text?: string;
+}
+
+export class Message {
   content: string;
   role: string;
 
@@ -9,8 +50,7 @@ class Message {
   }
 }
 
-// Define the Choice class
-class Choice {
+export class Choice {
   message: Message;
 
   constructor(message: string) {
@@ -18,7 +58,6 @@ class Choice {
   }
 }
 
-// Define the Response class
 class Response {
   choices: Choice[];
 
@@ -27,9 +66,28 @@ class Response {
   }
 }
 
-// Define the mock_openai_format function
-export function mockOpenaiFormat(messages: string): Response {
-  const choices = [new Choice(messages)]; // Create a list of Choice objects
-  const response = new Response(choices);
-  return response;
+export function mockOpenAIFormat(messages: string): Response {
+  const choice = new Choice(messages);
+  return new Response([choice]);
+}
+
+class StreamChoice {
+  delta: Message;
+
+  constructor(message: string) {
+    this.delta = new Message(message);
+  }
+}
+
+export class StreamResponseObject {
+  choices: StreamChoice[];
+
+  constructor(choices: StreamChoice[]) {
+    this.choices = choices;
+  }
+}
+
+export function mockOpenAIFormatStream(messages: string): StreamResponseObject {
+  const choice = new StreamChoice(messages);
+  return new StreamResponseObject([choice]);
 }
