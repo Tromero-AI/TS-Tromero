@@ -1,4 +1,46 @@
-class Message {
+export interface Message {
+  role: string;
+  content: string;
+}
+
+export interface Choice {
+  message: Message;
+}
+
+export interface CompletionResponse {
+  choices: Choice[];
+  usage?: any;
+}
+
+export interface Model {
+  id: string;
+}
+
+export interface SaveData {
+  messages: Message[];
+  model: string;
+  kwargs: any;
+  creation_time: string;
+  tags: string;
+  usage?: any;
+}
+
+export interface Client {
+  modelUrls: { [key: string]: string };
+  isBaseModel: { [key: string]: boolean };
+  tromero_key: string;
+  saveData: boolean;
+}
+
+export type StreamResponse = AsyncIterable<{
+  choices: { delta: { content: string } }[];
+}>;
+
+export interface TromeroCreateResponse {
+  generated_text?: string;
+}
+
+export class Message {
   content: string;
   role: string;
 
@@ -8,7 +50,7 @@ class Message {
   }
 }
 
-class Choice {
+export class Choice {
   message: Message;
 
   constructor(message: string) {
