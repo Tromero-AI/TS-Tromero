@@ -3,7 +3,7 @@ import axios, { AxiosInstance, AxiosResponse } from 'axios';
 interface TromeroAIOptions {
   apiKey: string;
   baseURL?: string;
-  dataUrl?: string;
+  dataURL?: string;
 }
 
 interface ApiResponse {
@@ -12,16 +12,16 @@ interface ApiResponse {
   [key: string]: any;
 }
 
-class TromeroAI {
+export default class TromeroClient {
   private axiosInstance: AxiosInstance;
   private apiKey: string;
-  private dataUrl: string;
+  private dataURL: string;
   private baseURL: string;
 
   constructor({
     apiKey,
     baseURL = 'https://midyear-grid-402910.lm.r.appspot.com/tailor/v1',
-    dataUrl = `${baseURL}/data`,
+    dataURL = `${baseURL}/data`,
   }: TromeroAIOptions) {
     this.apiKey = apiKey;
     this.axiosInstance = axios.create({
@@ -31,14 +31,14 @@ class TromeroAI {
         'X-API-KEY': this.apiKey,
       },
     });
-    this.dataUrl = dataUrl;
+    this.dataURL = dataURL;
     this.baseURL = baseURL;
   }
 
   async postData(data: any): Promise<ApiResponse> {
     try {
       const response: AxiosResponse<ApiResponse> =
-        await this.axiosInstance.post(this.dataUrl, data);
+        await this.axiosInstance.post(this.dataURL, data);
       return response.data;
     } catch (error) {
       if (axios.isAxiosError(error)) {
@@ -128,5 +128,3 @@ class TromeroAI {
     }
   }
 }
-
-export { TromeroAI };

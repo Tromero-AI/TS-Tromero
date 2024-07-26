@@ -1,6 +1,6 @@
 export interface Message {
   role: string;
-  content: string;
+  content: string | null;
 }
 
 export interface Choice {
@@ -41,7 +41,7 @@ export interface TromeroCreateResponse {
 }
 
 export class Message {
-  content: string;
+  content: string | null;
   role: string;
 
   constructor(content: string, role: string = 'assistant') {
