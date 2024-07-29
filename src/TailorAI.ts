@@ -231,7 +231,9 @@ class MockCompletions extends openai.OpenAI.Chat.Completions {
       ...body
     }: ChatCompletionCreateParams & TromeroCompletionArgs,
     options?: Core.RequestOptions
-  ): Promise<ChatCompletion | MockStream | Stream<ChatCompletionChunk>> {
+  ): Promise<
+    ChatCompletion | MockStream | Stream<ChatCompletionChunk> | undefined
+  > {
     const {
       model,
       use_fallback = true,
@@ -243,7 +245,7 @@ class MockCompletions extends openai.OpenAI.Chat.Completions {
 
     let isOpenAiModel = await this.isModelFromOpenAi(model);
 
-    let res;
+    let res: ChatCompletion | Stream<ChatCompletionChunk> | MockStream;
 
     if (isOpenAiModel) {
       try {
@@ -301,92 +303,92 @@ class MockCompletions extends openai.OpenAI.Chat.Completions {
           throw error;
         }
       }
-    } else {
-      if (!(model in this.tromeroClient.modelUrls)) {
-        const { url, baseModel } = await this.tromeroClient.getModelUrl(model);
-        this.tromeroClient.modelUrls[model] = url;
-        this.tromeroClient.baseModel[model] = baseModel;
-      }
-
-      const model_request_name = this.tromeroClient.baseModel[model]
-        ? 'NO_ADAPTER'
-        : model;
-
-      if (body.stream) {
-        const onData = (data: any) => {
-          if (saveData) {
-            this.saveDataOnServer(saveData, {
-              response: data,
-              model,
-              ...formattedKwargs,
-              creation_time: new Date().toISOString(),
-              tags,
-            });
-          }
-        };
-        const onError = (error: Error) => {
-          if (use_fallback && fallback_model) {
-            const modifiedBody: ChatCompletionCreateParamsStreaming = {
-              ...body,
-              model: fallback_model,
-            };
-            res = this._create(modifiedBody, options);
-          }
-          if (saveData) {
-            this.saveDataOnServer(saveData, {
-              response: res,
-              model,
-              ...formattedKwargs,
-              creation_time: new Date().toISOString(),
-              tags,
-            });
-          }
-        };
-        const onEnd = () => {};
-
-        res = this.tromeroClient.createStream(
-          model_request_name,
-          this.tromeroClient.modelUrls[model],
-          messages,
-          formattedKwargs,
-          onData,
-          onError,
-          onEnd
-        );
-      } else {
-        try {
-          res = await this.tromeroClient.create(
-            model_request_name,
-            this.tromeroClient.modelUrls[model],
-            messages,
-            this.tromeroClient.apiKey,
-            formattedKwargs
-          );
-
-          if (res.generated_text) {
-            res = mockOpenAIFormat(res.generated_text);
-          }
-        } catch (error) {
-          if (use_fallback && fallback_model) {
-            const modifiedBody: ChatCompletionCreateParamsNonStreaming = {
-              ...body,
-              model: fallback_model,
-            };
-            res = this._create(modifiedBody, options);
-          }
-        } finally {
-          if (saveData) {
-            this.saveDataOnServer(saveData, {
-              response: res,
-              model,
-              ...formattedKwargs,
-              creation_time: new Date().toISOString(),
-              tags,
-            });
-          }
-        }
-        return res;
-      }
     }
+    // else {
+    //   if (!(model in this.tromeroClient.modelUrls)) {
+    //     const { url, baseModel } = await this.tromeroClient.getModelUrl(model);
+    //     this.tromeroClient.modelUrls[model] = url;
+    //     this.tromeroClient.baseModel[model] = baseModel;
+    //   }
+
+    //   const model_request_name = this.tromeroClient.baseModel[model]
+    //     ? 'NO_ADAPTER'
+    //     : model;
+
+    //   if (body.stream) {
+    //     const onData = (data: any) => {
+    //       if (saveData) {
+    //         this.saveDataOnServer(saveData, {
+    //           response: data,
+    //           model,
+    //           ...formattedKwargs,
+    //           creation_time: new Date().toISOString(),
+    //           tags,
+    //         });
+    //       }
+    //     };
+    //     const onError = async (error: Error) => {
+    //       if (use_fallback && fallback_model) {
+    //         const modifiedBody: ChatCompletionCreateParamsStreaming = {
+    //           ...body,
+    //           model: fallback_model,
+    //         };
+    //         res = await this._create(modifiedBody, options);
+    //       }
+    //       if (saveData) {
+    //         this.saveDataOnServer(saveData, {
+    //           response: res,
+    //           model,
+    //           ...formattedKwargs,
+    //           creation_time: new Date().toISOString(),
+    //           tags,
+    //         });
+    //       }
+    //     };
+    //     const onEnd = () => {};
+
+    //     res = await this.tromeroClient.createStream(
+    //       model_request_name,
+    //       this.tromeroClient.modelUrls[model],
+    //       messages,
+    //       formattedKwargs,
+    //       onData,
+    //       onError,
+    //       onEnd
+    //     );
+    //   } else {
+    //     try {
+    //       res = await this.tromeroClient.create(
+    //         model_request_name,
+    //         this.tromeroClient.modelUrls[model],
+    //         messages,
+    //         formattedKwargs
+    //       );
+
+    //       if (res.generated_text) {
+    //         res = mockOpenAIFormat(res.generated_text);
+    //       }
+    //     } catch (error) {
+    //       if (use_fallback && fallback_model) {
+    //         const modifiedBody: ChatCompletionCreateParamsNonStreaming = {
+    //           ...body,
+    //           model: fallback_model,
+    //         };
+    //         res = this._create(modifiedBody, options);
+    //       }
+    //     } finally {
+    //       if (saveData) {
+    //         this.saveDataOnServer(saveData, {
+    //           response: res,
+    //           model,
+    //           ...formattedKwargs,
+    //           creation_time: new Date().toISOString(),
+    //           tags,
+    //         });
+    //       }
+    //     }
+    //     return res;
+    //   }
+    // }
   }
 }

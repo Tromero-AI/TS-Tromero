@@ -1,4 +1,5 @@
-import axios, { AxiosInstance, AxiosResponse } from 'axios';
+import { ChatCompletionChunk } from 'openai/resources';
+import { mockOpenAIFormatStream } from './tromeroUtils';
 
 interface TromeroAIOptions {
   apiKey: string;
@@ -13,10 +14,9 @@ interface ApiResponse {
 }
 
 export default class TromeroClient {
-  private axiosInstance: AxiosInstance;
   private dataURL: string;
   private baseURL: string;
-  apiKey: string;
+  private apiKey: string;
   modelUrls: { [key: string]: string };
   baseModel: { [key: string]: any };
 
@@ -26,57 +26,56 @@ export default class TromeroClient {
     dataURL = `${baseURL}/data`,
   }: TromeroAIOptions) {
     this.apiKey = apiKey;
-    this.axiosInstance = axios.create({
-      baseURL,
-      headers: {
-        'Content-Type': 'application/json',
-        'X-API-KEY': this.apiKey,
-      },
-    });
     this.dataURL = dataURL;
     this.baseURL = baseURL;
     this.modelUrls = {};
     this.baseModel = {};
   }
 
-  async postData(data: any): Promise<ApiResponse> {
+  private async fetchData(
+    url: string,
+    options: RequestInit
+  ): Promise<ApiResponse> {
     try {
-      const response: AxiosResponse<ApiResponse> =
-        await this.axiosInstance.post(this.dataURL, data);
-      return response.data;
+      const response = await fetch(url, options);
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      return data;
     } catch (error) {
-      if (axios.isAxiosError(error)) {
-        const statusCode = error.response ? error.response.status : 'N/A';
+      if (error instanceof Error) {
         return {
           error: `An error occurred: ${error.message}`,
-          status_code: statusCode,
+          status_code: 'N/A',
         };
       }
-      return { error: 'An unknown error occurred', status_code: 'N/A' };
+      return {
+        error: 'An error occurred',
+        status_code: 'N/A',
+      };
     }
   }
 
+  async postData(data: any): Promise<ApiResponse> {
+    return this.fetchData(this.dataURL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-API-KEY': this.apiKey,
+      },
+      body: JSON.stringify(data),
+    });
+  }
+
   async getModelUrl(modelName: string): Promise<ApiResponse> {
-    try {
-      const response: AxiosResponse<ApiResponse> = await axios.get(
-        `${this.baseURL}/model/${modelName}/url`,
-        {
-          headers: {
-            'X-API-KEY': this.apiKey,
-            'Content-Type': 'application/json',
-          },
-        }
-      );
-      return response.data;
-    } catch (error) {
-      if (axios.isAxiosError(error)) {
-        return {
-          error: `An error occurred: ${error.message}`,
-          status_code: error.response?.status.toString() ?? 'N/A',
-        };
-      }
-      return { error: 'An unexpected error occurred', status_code: 'N/A' };
-    }
+    return this.fetchData(`${this.baseURL}/model/${modelName}/url`, {
+      method: 'GET',
+      headers: {
+        'X-API-KEY': this.apiKey,
+        'Content-Type': 'application/json',
+      },
+    });
   }
 
   mockOpenAIFormatStream(messages: string): any {
@@ -85,24 +84,30 @@ export default class TromeroClient {
   }
 
   async *streamResponse(
-    response: AsyncIterable<Buffer>
+    response: Response
   ): AsyncGenerator<any, void, unknown> {
+    const reader = response.body?.getReader();
+    const decoder = new TextDecoder('utf-8');
     let lastChunk = '';
 
-    for await (const chunk of response) {
-      const chunkStr = chunk.toString('utf-8');
-      const jsonStr = chunkStr.slice(5); // Adjust as necessary
-      lastChunk = jsonStr;
+    if (reader) {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
 
-      const pattern = /"token":({.*?})/;
-      const match = pattern.exec(jsonStr);
+        const chunkStr = decoder.decode(value);
+        lastChunk = chunkStr;
 
-      if (match) {
-        const json = JSON.parse(match[1]);
-        const formattedChunk = this.mockOpenAIFormatStream(json['text']);
-        yield formattedChunk;
-      } else {
-        break;
+        const pattern = /"token":({.*?})/;
+        const match = pattern.exec(chunkStr);
+
+        if (match) {
+          const json = JSON.parse(match[1]);
+          const formattedChunk = this.mockOpenAIFormatStream(json['text']);
+          yield formattedChunk;
+        } else {
+          break;
+        }
       }
     }
   }
@@ -111,71 +116,141 @@ export default class TromeroClient {
     model: string,
     modelUrl: string,
     messages: any[],
-    tromeroKey: string,
     parameters: any = {}
   ): Promise<ApiResponse> {
-    const headers = {
-      'X-API-KEY': tromeroKey,
-      'Content-Type': 'application/json',
-    };
-
-    const data = {
-      adapter_name: model,
-      messages: messages,
-      parameters: parameters,
-    };
-
-    try {
-      const response: AxiosResponse<ApiResponse> = await axios.post(
-        `${modelUrl}/generate`,
-        data,
-        { headers }
-      );
-      return response.data;
-    } catch (error) {
-      if (axios.isAxiosError(error)) {
-        const statusCode = error.response ? error.response.status : 'N/A';
-        throw new Error(`An error occurred: ${error.message}`);
-      }
-      throw new Error('An unknown error occurred');
-    }
+    return this.fetchData(`${modelUrl}/generate`, {
+      method: 'POST',
+      headers: {
+        'X-API-KEY': this.apiKey,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ adapter_name: model, messages, parameters }),
+    });
   }
-  async createStream(
-    model: string,
-    modelUrl: string,
-    messages: any[],
-    parameters: { [key: string]: any },
-    onData: (data: any) => void,
-    onError: (error: Error) => void,
-    onEnd: () => void
-  ) {
-    try {
-      const response = await axios.post(
-        `${modelUrl}/generate`,
-        { messages, parameters, adapter_name: model },
-        {
-          headers: {
-            'X-API-KEY': this.apiKey,
-            'Content-Type': 'application/json',
-          },
-          responseType: 'stream',
-        }
-      );
 
-      response.data.on('data', (chunk: Buffer) => {
-        const parsedChunk = JSON.parse(chunk.toString());
-        onData(parsedChunk);
-      });
+  // async createStream(
+  //   model: string,
+  //   modelUrl: string,
+  //   messages: any[],
+  //   parameters: { [key: string]: any },
+  //   onData: (data: any) => void,
+  //   onError: (error: Error) => void,
+  //   onEnd: () => void
+  // ) {
+  //   try {
+  //     const response = await fetch(`${modelUrl}/generate`, {
+  //       method: 'POST',
+  //       headers: {
+  //         'X-API-KEY': this.apiKey,
+  //         'Content-Type': 'application/json',
+  //       },
+  //       body: JSON.stringify({ messages, parameters, adapter_name: model }),
+  //     });
 
-      response.data.on('end', () => {
-        onEnd();
-      });
+  //     const reader = response.body?.getReader();
+  //     const decoder = new TextDecoder('utf-8');
 
-      response.data.on('error', (err: Error) => {
-        onError(err);
-      });
-    } catch (error) {
-      onError(error as Error);
-    }
-  }
+  //     if (reader) {
+  //       reader
+  //         .read()
+  //         .then(function process({ done, value }) {
+  //           if (done) {
+  //             onEnd();
+  //             return;
+  //           }
+
+  //           const chunk = decoder.decode(value, { stream: true });
+  //           onData(JSON.parse(chunk));
+
+  //           reader.read().then(process).catch(onError);
+  //         })
+  //         .catch(onError);
+  //     }
+  //   } catch (error) {
+  //     onError(error as Error);
+  //   }
+  // }
+
+  // async createStream(
+  //   model: string,
+  //   modelUrl: string,
+  //   messages: any[],
+  //   parameters: { [key: string]: any },
+  //   onData: (data: ChatCompletionChunk) => void,
+  //   onError: (error: Error) => void,
+  //   onEnd: () => void
+  // ) {
+  //   try {
+  //     const response = await fetch(`${modelUrl}/generate_stream`, {
+  //       method: 'POST',
+  //       headers: {
+  //         'X-API-KEY': this.apiKey,
+  //         'Content-Type': 'application/json',
+  //       },
+  //       body: JSON.stringify({ messages, parameters, adapter_name: model }),
+  //     });
+
+  //     if (!response.ok) {
+  //       throw new Error(`HTTP error! status: ${response.status}`);
+  //     }
+
+  //     const reader = response.body?.getReader();
+  //     const decoder = new TextDecoder('utf-8');
+
+  //     if (reader) {
+  //       let buffer = '';
+
+  //       const process = async ({
+  //         done,
+  //         value,
+  //       }: ReadableStreamDefaultReadResult<Uint8Array>) => {
+  //         if (done) {
+  //           onEnd();
+  //           return;
+  //         }
+
+  //         buffer += decoder.decode(value, { stream: true });
+  //         const parts = buffer.split('\n');
+  //         buffer = parts.pop()!; // Keep the last incomplete part in the buffer
+
+  //         for (const part of parts) {
+  //           if (part.startsWith('data:')) {
+  //             try {
+  //               const jsonStr = part.substring(5);
+  //               const data = JSON.parse(jsonStr);
+  //               if (data.token && data.token.text) {
+  //                 const formattedChunk: ChatCompletionChunk = {
+  //                   choices: [
+  //                     {
+  //                       finish_reason: null,
+  //                       index: 0,
+  //                       delta: {
+  //                         content: data.token.text,
+  //                       },
+  //                     },
+  //                   ],
+  //                   id: '',
+  //                   created: 0,
+  //                   model: '',
+  //                   object: 'chat.completion.chunk',
+  //                 };
+  //                 onData(formattedChunk);
+  //               }
+  //             } catch (error) {
+  //               console.error('Error parsing JSON data:', error);
+  //             }
+  //           }
+  //         }
+
+  //         reader.read().then(process).catch(onError);
+  //       };
+
+  //       reader.read().then(process).catch(onError);
+  //     } else {
+  //       onEnd();
+  //     }
+  //   } catch (error) {
+  //     onError(error as Error);
+  //   }
+  // }
 }
