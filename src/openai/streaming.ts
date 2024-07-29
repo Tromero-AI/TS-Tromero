@@ -3,33 +3,24 @@ import type {
   ChatCompletionChunk,
 } from 'openai/resources/chat';
 import { Stream } from 'openai/streaming';
-import { TromeroCompletionMeta } from '../shared';
 import mergeChunks from './mergeChunks';
 
+/**
+ * A mock stream that saves the final completion to a file.
+ * @param stream - The stream to mock.
+ * @param saveData - The function to save the completion data.
+ * @returns The mock stream.
+ */
 export class MockStream extends Stream<ChatCompletionChunk> {
-  tromero: TromeroCompletionMeta;
-
-  private report: (response: ChatCompletion | null) => Promise<string>;
+  private saveData: (response: ChatCompletion | null) => Promise<string>;
 
   constructor(
     stream: Stream<ChatCompletionChunk>,
-    report: (response: ChatCompletion | null) => Promise<string>
+    saveData: (response: ChatCompletion | null) => Promise<string>
   ) {
     // @ts-expect-error - This is a private property but we need to access it
     super(stream.iterator, stream.controller);
-    this.report = report;
-
-    const logId = '';
-
-    this.tromero = {
-      logId,
-      getLastLogId: () => {
-        return '';
-      },
-      updateLastLog: async () => {
-        return undefined;
-      },
-    };
+    this.saveData = saveData;
   }
 
   async *[Symbol.asyncIterator](): AsyncIterator<
@@ -48,6 +39,6 @@ export class MockStream extends Stream<ChatCompletionChunk> {
       yield result.value;
     }
 
-    await this.report(combinedResponse);
+    await this.saveData(combinedResponse);
   }
 }

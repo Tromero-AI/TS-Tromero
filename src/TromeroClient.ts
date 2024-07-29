@@ -14,9 +14,11 @@ interface ApiResponse {
 
 export default class TromeroClient {
   private axiosInstance: AxiosInstance;
-  private apiKey: string;
   private dataURL: string;
   private baseURL: string;
+  apiKey: string;
+  modelUrls: { [key: string]: string };
+  baseModel: { [key: string]: any };
 
   constructor({
     apiKey,
@@ -33,6 +35,8 @@ export default class TromeroClient {
     });
     this.dataURL = dataURL;
     this.baseURL = baseURL;
+    this.modelUrls = {};
+    this.baseModel = {};
   }
 
   async postData(data: any): Promise<ApiResponse> {
@@ -49,6 +53,57 @@ export default class TromeroClient {
         };
       }
       return { error: 'An unknown error occurred', status_code: 'N/A' };
+    }
+  }
+
+  async getModelUrl(modelName: string): Promise<ApiResponse> {
+    try {
+      const response: AxiosResponse<ApiResponse> = await axios.get(
+        `${this.baseURL}/model/${modelName}/url`,
+        {
+          headers: {
+            'X-API-KEY': this.apiKey,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+      return response.data;
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        return {
+          error: `An error occurred: ${error.message}`,
+          status_code: error.response?.status.toString() ?? 'N/A',
+        };
+      }
+      return { error: 'An unexpected error occurred', status_code: 'N/A' };
+    }
+  }
+
+  mockOpenAIFormatStream(messages: string): any {
+    const choice = { delta: { content: messages } };
+    return { choices: [choice] };
+  }
+
+  async *streamResponse(
+    response: AsyncIterable<Buffer>
+  ): AsyncGenerator<any, void, unknown> {
+    let lastChunk = '';
+
+    for await (const chunk of response) {
+      const chunkStr = chunk.toString('utf-8');
+      const jsonStr = chunkStr.slice(5); // Adjust as necessary
+      lastChunk = jsonStr;
+
+      const pattern = /"token":({.*?})/;
+      const match = pattern.exec(jsonStr);
+
+      if (match) {
+        const json = JSON.parse(match[1]);
+        const formattedChunk = this.mockOpenAIFormatStream(json['text']);
+        yield formattedChunk;
+      } else {
+        break;
+      }
     }
   }
 
@@ -80,20 +135,16 @@ export default class TromeroClient {
     } catch (error) {
       if (axios.isAxiosError(error)) {
         const statusCode = error.response ? error.response.status : 'N/A';
-        return {
-          error: `An error occurred: ${error.message}`,
-          status_code: statusCode,
-        };
+        throw new Error(`An error occurred: ${error.message}`);
       }
-      return { error: 'An unknown error occurred', status_code: 'N/A' };
+      throw new Error('An unknown error occurred');
     }
   }
   async createStream(
     model: string,
     modelUrl: string,
     messages: any[],
-    tromeroKey: string,
-    parameters: any,
+    parameters: { [key: string]: any },
     onData: (data: any) => void,
     onError: (error: Error) => void,
     onEnd: () => void
@@ -101,10 +152,10 @@ export default class TromeroClient {
     try {
       const response = await axios.post(
         `${modelUrl}/generate`,
-        { messages, parameters },
+        { messages, parameters, adapter_name: model },
         {
           headers: {
-            'X-API-KEY': tromeroKey,
+            'X-API-KEY': this.apiKey,
             'Content-Type': 'application/json',
           },
           responseType: 'stream',

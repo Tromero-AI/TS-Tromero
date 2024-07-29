@@ -5,17 +5,13 @@ import type {
   ChatCompletionMessageToolCall,
 } from 'openai/resources/chat';
 
-const omit = <T extends Record<string, unknown>, K extends keyof T>(
-  obj: T,
-  ...keys: K[]
-): Omit<T, K> => {
-  const ret = { ...obj };
-  for (const key of keys) {
-    delete ret[key];
-  }
-  return ret;
-};
-
+/**
+ * Merges a new chunk into an existing completion.
+ *
+ * @param base - The existing completion to merge into.
+ * @param chunk - The new chunk to merge.
+ * @returns The merged completion.
+ */
 export default function mergeChunks(
   base: ChatCompletion | null,
   chunk: ChatCompletionChunk

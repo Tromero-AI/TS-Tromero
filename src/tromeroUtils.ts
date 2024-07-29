@@ -91,3 +91,9 @@ export function mockOpenAIFormatStream(messages: string): StreamResponseObject {
   const choice = new StreamChoice(messages);
   return new StreamResponseObject([choice]);
 }
+
+export type TromeroCompletionArgs = {
+  saveData?: boolean;
+  tags?: string[];
+  fallbackModel?: string;
+};

@@ -1,6 +1,5 @@
 import * as openai from 'openai';
 import * as Core from 'openai/core';
-import { readEnv } from 'openai/core';
 import type { Stream } from 'openai/streaming';
 import type {
   ChatCompletion,
@@ -10,16 +9,16 @@ import type {
   ChatCompletionCreateParamsNonStreaming,
   ChatCompletionCreateParamsStreaming,
 } from 'openai/resources/chat/completions';
-import OpenAI, { ClientOptions } from 'openai';
-import { Chat, Completions } from 'openai/resources/chat';
-import { RequestOptions, APIPromise } from 'openai/core';
-import TromeroClient from './Tromero';
-import { getModelUrl } from './tromeroRequests';
-import { Choice, Message, mockOpenAIFormat } from './tromeroUtils';
-import { TromeroCompletionArgs, TromeroCompletionMeta } from './shared';
+import {
+  Choice,
+  Message,
+  mockOpenAIFormat,
+  TromeroCompletionArgs,
+} from './tromeroUtils';
 import { MockStream } from './openai/streaming';
+import TromeroClient from './tromeroClient';
 
-interface TailorAIOptions extends ClientOptions {
+interface TailorAIOptions extends openai.ClientOptions {
   apiKey: string;
   tromeroKey: string;
   saveData?: boolean;
@@ -27,8 +26,6 @@ interface TailorAIOptions extends ClientOptions {
 
 export default class Tromero extends openai.OpenAI {
   public tromeroClient?: TromeroClient;
-  public modelUrls: { [key: string]: string };
-  public baseModel: { [key: string]: string };
 
   constructor({ tromeroKey, ...opts }: TailorAIOptions) {
     super({ ...opts });
@@ -38,11 +35,9 @@ export default class Tromero extends openai.OpenAI {
       this.chat.setClient(tromeroClient);
     } else {
       console.warn(
-        "You're using the Tromero client without an API key. While OpenAI requests will still go through, Tromero requests will fail."
+        "You're using the Tromero client without an API key. While OpenAI requests will still go through, Tromero requests will fail, and no data will be saved."
       );
     }
-    this.modelUrls = {}
-    this.baseModel = {}
   }
 
   chat: MockChat = new MockChat(this);
@@ -53,14 +48,17 @@ class MockChat extends openai.OpenAI.Chat {
     this.completions.tromeroClient = client;
   }
 
-  completions: MockCompletions = new MockCompletions(this._client);
+  completions: MockCompletions = new MockCompletions(
+    this._client,
+    this.completions.tromeroClient
+  );
 }
 
 class MockCompletions extends openai.OpenAI.Chat.Completions {
   openaiClient: openai.OpenAI;
-  tromeroClient?: TromeroClient;
+  tromeroClient: TromeroClient;
 
-  constructor(client: openai.OpenAI, tromeroClient?: TromeroClient) {
+  constructor(client: openai.OpenAI, tromeroClient: TromeroClient) {
     super(client);
     this.openaiClient = client;
     this.tromeroClient = tromeroClient;
@@ -75,20 +73,22 @@ class MockCompletions extends openai.OpenAI.Chat.Completions {
     };
   }
 
-  async private saveDataOnServer (saveData: boolean, data: any): Promise<string> {
+  private async saveDataOnServer(
+    saveData: boolean,
+    data: any
+  ): Promise<string> {
     try {
       if (saveData) {
-        setTimeout(() => this.tromeroClient?.postData(data), 0);
+        setTimeout(() => this.tromeroClient.postData(data), 0);
       }
-    } catch (error) {
-    }
+    } catch (error) {}
     return '';
   }
 
-  private async formatKwargs (kwargs: {
-    [key: string]: any;
-  }): Promise<{formattedKwargs: { [key: string]: any }, openAiKwargs: { [key: string]: any }}>
-    {
+  private async formatKwargs(kwargs: { [key: string]: any }): Promise<{
+    formattedKwargs: { [key: string]: any };
+    openAiKwargs: { [key: string]: any };
+  }> {
     const keysToKeep = [
       'best_of',
       'decoder_input_details',
@@ -149,7 +149,7 @@ class MockCompletions extends openai.OpenAI.Chat.Completions {
         keysToKeep.join(', ')
       );
     }
-    return {formattedKwargs, openAiKwargs }
+    return { formattedKwargs, openAiKwargs };
   }
 
   private formatMessages(messages: Message[]): Message[] {
@@ -193,8 +193,6 @@ class MockCompletions extends openai.OpenAI.Chat.Completions {
     }
   }
 
-
-
   _create(
     body: ChatCompletionCreateParamsNonStreaming,
     options?: Core.RequestOptions
@@ -214,8 +212,6 @@ class MockCompletions extends openai.OpenAI.Chat.Completions {
     return resp;
   }
 
-  // @ts-expect-error Type mismatch because a `Promise<>` is being used.
-  // wrapper but I actually think the types are correct here.
   create(
     body: ChatCompletionCreateParamsNonStreaming & TromeroCompletionArgs,
     options?: Core.RequestOptions
@@ -229,272 +225,168 @@ class MockCompletions extends openai.OpenAI.Chat.Completions {
     options?: Core.RequestOptions
   ): Core.APIPromise<Stream<ChatCompletionChunk> | ChatCompletion>;
   async create(
-    { saveData, tags, ...body }: ChatCompletionCreateParams & TromeroCompletionArgs,
+    {
+      saveData,
+      tags,
+      ...body
+    }: ChatCompletionCreateParams & TromeroCompletionArgs,
     options?: Core.RequestOptions
-  ): Promise<Core.APIPromise<ChatCompletion | MockStream>> {
-
-
-     const {
-       model,
-       use_fallback = true,
-       fallback_model = '',
-       ...kwargs,
-     } = body as any;
-     const messages = this.formatMessages(kwargs.messages);
+  ): Promise<ChatCompletion | MockStream | Stream<ChatCompletionChunk>> {
+    const {
+      model,
+      use_fallback = true,
+      fallback_model = '',
+      ...kwargs
+    } = body as any;
+    const messages = this.formatMessages(kwargs.messages);
     const { formattedKwargs, openAiKwargs } = await this.formatKwargs(kwargs);
 
     let isOpenAiModel = await this.isModelFromOpenAi(model);
 
+    let res;
+
     if (isOpenAiModel) {
-      if (body.stream) {
-        const stream = await this._create(body, options);
-        try {
-          return new MockStream(stream, (response): Promise<string> => {
-            if (!saveData) return Promise.resolve('');
-            return this.saveDataOnServer(saveData, { messages, model, ...formattedKwargs, creation_time: new Date().toISOString(), tags });
-          });
-        } catch (e) {
-          console.error('Tromero: error creating Mock stream');
-          console.error(e);
-          throw e;
-        }
-      } else {
-        const response = await this._create(body, options);
-
-        /*  the python version of this code is:
-
-        if hasattr(res, 'choices'):
-            for choice in res.choices:
-                formatted_choice = self._choice_to_dict(choice)
-                save_data = {"messages": formatted_messages + [formatted_choice['message']],
-                                "model": model,
-                                "kwargs": send_kwargs,
-                                "creation_time": str(datetime.datetime.now().isoformat()),
-                                "tags": self._tags_to_string(tags)
-                                }
-                # if hasattr(res, 'usage'):
-                #     save_data['usage'] = res.usage.model_dump()
-                self._save_data(save_data)
-
-        */
-
-        if (response.choices) {
-          for (const choice of response.choices) {
-            const formattedChoice = this.choiceToDict(choice);
-            if
-            this.saveDataOnServer(saveData, { messages, model, ...formattedKwargs, creation_time: new Date().toISOString(), tags });
-          }
-        }
-
-        if (saveData) {
-          this.saveDataOnServer(saveData, { messages, model, ...formattedKwargs, creation_time: new Date().toISOString(), tags });
-        }
-
-
-
-    const finetunedb = {
-      logRequest: true,
-      ...rawFinetunedb,
-    };
-    const startTime = Date.now();
-    let logId: FinetuneDbCompletionMeta['logId'] = '';
-
-    try {
-      if (body.stream) {
-        const stream = await this._create(body, options);
-        try {
-          return new MockStream(stream, (response) => {
-            if (!finetunedb.logRequest) return '';
-            return this._report({
-              projectId: finetunedb.projectId
-                ? finetunedb.projectId
-                : this.finetuneDbClient?.projectId ?? '',
-              parentId: finetunedb.parentId,
-              body: body,
-              response: response,
-              latency: Date.now() - startTime,
-              inputTokenCount: response?.usage?.prompt_tokens ?? 0,
-              outputTokenCount: response?.usage?.completion_tokens ?? 0,
-              tags: finetunedb.tags,
-              metadata: finetunedb.metadata,
+      try {
+        if (body.stream) {
+          res = await this._create(body, options);
+          try {
+            return new MockStream(res, (response): Promise<string> => {
+              if (!saveData) return Promise.resolve('');
+              return this.saveDataOnServer(saveData, {
+                response,
+                model,
+                openAiKwargs,
+                creation_time: new Date().toISOString(),
+                tags: Array.isArray(tags)
+                  ? tags.join(', ')
+                  : typeof tags === 'string'
+                  ? tags
+                  : '',
+              });
             });
-          });
-        } catch (e) {
-          console.error('FinetuneDB: error creating wrapped stream');
-          console.error(e);
-          throw e;
-        }
-      } else {
-        const response = await this._create(body, options);
-
-        if (
-          !finetunedb.projectId &&
-          !(this.finetuneDbClient && this.finetuneDbClient.projectId)
-        ) {
-          console.warn(
-            "You're using the FinetuneDB client without a project ID. No completion requests will be logged."
-          );
-        }
-
-        logId =
-          finetunedb.logRequest &&
-          (finetunedb.projectId || this.finetuneDbClient?.projectId)
-            ? this._report({
-                projectId: finetunedb.projectId
-                  ? finetunedb.projectId
-                  : this.finetuneDbClient?.projectId ?? '',
-                parentId: finetunedb.parentId,
-                body: body,
-                response: response,
-                latency: Date.now() - startTime,
-                inputTokenCount: response?.usage?.prompt_tokens ?? 0,
-                outputTokenCount: response?.usage?.completion_tokens ?? 0,
-                tags: finetunedb.tags,
-                metadata: finetunedb.metadata,
-              })
-            : '';
-
-        return {
-          ...response,
-          finetunedb: {
-            logId,
-            getLastLogId: () => {
-              return logId;
-            },
-            updateLastLog: async (update) => {
-              if (logId) {
-                return await this.finetuneDbClient?.updateLog(logId, {
-                  ...update,
-                  projectId: finetunedb.projectId
-                    ? finetunedb.projectId
-                    : this.finetuneDbClient?.projectId ?? '',
+          } catch (e) {
+            console.error('Tromero: error creating Mock stream');
+            console.error(e);
+            throw e;
+          }
+        } else {
+          res = await this._create(body, options);
+          if (res.choices) {
+            for (const choice of res.choices) {
+              const formattedChoice = this.choiceToDict(choice);
+              if (saveData) {
+                this.saveDataOnServer(saveData, {
+                  messages: messages.concat([formattedChoice.message]),
+                  model,
+                  kwargs: openAiKwargs,
+                  creation_time: new Date().toISOString(),
+                  tags: Array.isArray(tags)
+                    ? tags.join(', ')
+                    : typeof tags === 'string'
+                    ? tags
+                    : '',
                 });
               }
-              return undefined;
-            },
-          },
-        };
-      }
-    } catch (error: unknown) {
-      if (error instanceof openai.APIError) {
-        const rawMessage = error.message as string | string[];
-        const message = Array.isArray(rawMessage)
-          ? rawMessage.join(', ')
-          : rawMessage;
-        if (
-          !finetunedb.projectId &&
-          !(this.finetuneDbClient && this.finetuneDbClient.projectId)
-        ) {
-          console.warn(
-            "You're using the FinetuneDB client without a project ID. No completion requests will be logged."
-          );
-        } else {
-          logId = this._report({
-            projectId: finetunedb.projectId
-              ? finetunedb.projectId
-              : this.finetuneDbClient?.projectId ?? '',
-            parentId: finetunedb.parentId,
-            body: body,
-            response: null,
-            latency: Date.now() - startTime,
-            inputTokenCount: 0,
-            outputTokenCount: 0,
-            tags: finetunedb.tags,
-            error: message,
-            metadata: finetunedb.metadata,
-          });
-        }
-      }
-
-      // make sure error is an object we can add properties to
-      if (typeof error === 'object' && error !== null) {
-        error = {
-          ...error,
-          finetunedb: {
-            logId,
-          },
-        };
-      }
-
-      throw error;
-    }
-  }
-
-  creates(
-    body: ChatCompletionCreateParams,
-    options?: RequestOptions
-  ): APIPromise<ChatCompletion> | APIPromise<Stream<ChatCompletionChunk>> {
-    return new APIPromise(async (resolve, reject) => {
-      try {
-        const {
-          model,
-          stream,
-          use_fallback = true,
-          fallback_model = '',
-          ...kwargs
-        } = body as any;
-        const messages = this.formatMessages(kwargs.messages);
-        const formattedKwargs = await this.formatKwargs(kwargs);
-
-        let isOpenAiModel = await this.isModelFromOpenAi(model);
-        if (isOpenAiModel) {
-          const openai_kwargs = { ...kwargs, messages };
-          const res = await super.create(openai_kwargs, options);
-          this.saveData({ messages, model, ...openai_kwargs });
-          resolve(res);
-        } else {
-          if (!(model in this._client.modelUrls)) {
-            const { url, baseModel } = await getModelUrl(
-              model,
-              this._client.tromeroKey
-            );
-            this._client.modelUrls[model] = url;
-            this._client.isBaseModel[model] = baseModel;
-          }
-
-          const model_request_name = this._client.isBaseModel[model]
-            ? 'NO_ADAPTER'
-            : model;
-          let res;
-
-          if (stream) {
-            const onData = (data: any) => {
-              resolve(data);
-            };
-            const onError = (error: Error) => {
-              reject(error);
-            };
-            const onEnd = () => {};
-
-            this._client.tromeroClient.createStream(
-              model_request_name,
-              this._client.modelUrls[model],
-              messages,
-              this._client.tromeroKey,
-              formattedKwargs,
-              onData,
-              onError,
-              onEnd
-            );
-          } else {
-            res = await this._client.tromeroClient.create(
-              model_request_name,
-              this._client.modelUrls[model],
-              messages,
-              this._client.tromeroKey,
-              formattedKwargs
-            );
-
-            if (res.generated_text) {
-              res = mockOpenAIFormat(res.generated_text);
             }
-            this.saveData({ messages, model, ...formattedKwargs });
-            resolve(res);
+          }
+          return res;
+        }
+      } catch (error: unknown) {
+        if (error instanceof openai.APIError) {
+          const rawMessage = error.message as string | string[];
+          const message = Array.isArray(rawMessage)
+            ? rawMessage.join(', ')
+            : rawMessage;
+          console.warn('Error in create: ', message);
+          throw error;
+        }
+      }
+    } else {
+      if (!(model in this.tromeroClient.modelUrls)) {
+        const { url, baseModel } = await this.tromeroClient.getModelUrl(model);
+        this.tromeroClient.modelUrls[model] = url;
+        this.tromeroClient.baseModel[model] = baseModel;
+      }
+
+      const model_request_name = this.tromeroClient.baseModel[model]
+        ? 'NO_ADAPTER'
+        : model;
+
+      if (body.stream) {
+        const onData = (data: any) => {
+          if (saveData) {
+            this.saveDataOnServer(saveData, {
+              response: data,
+              model,
+              ...formattedKwargs,
+              creation_time: new Date().toISOString(),
+              tags,
+            });
+          }
+        };
+        const onError = (error: Error) => {
+          if (use_fallback && fallback_model) {
+            const modifiedBody: ChatCompletionCreateParamsStreaming = {
+              ...body,
+              model: fallback_model,
+            };
+            res = this._create(modifiedBody, options);
+          }
+          if (saveData) {
+            this.saveDataOnServer(saveData, {
+              response: res,
+              model,
+              ...formattedKwargs,
+              creation_time: new Date().toISOString(),
+              tags,
+            });
+          }
+        };
+        const onEnd = () => {};
+
+        res = this.tromeroClient.createStream(
+          model_request_name,
+          this.tromeroClient.modelUrls[model],
+          messages,
+          formattedKwargs,
+          onData,
+          onError,
+          onEnd
+        );
+      } else {
+        try {
+          res = await this.tromeroClient.create(
+            model_request_name,
+            this.tromeroClient.modelUrls[model],
+            messages,
+            this.tromeroClient.apiKey,
+            formattedKwargs
+          );
+
+          if (res.generated_text) {
+            res = mockOpenAIFormat(res.generated_text);
+          }
+        } catch (error) {
+          if (use_fallback && fallback_model) {
+            const modifiedBody: ChatCompletionCreateParamsNonStreaming = {
+              ...body,
+              model: fallback_model,
+            };
+            res = this._create(modifiedBody, options);
+          }
+        } finally {
+          if (saveData) {
+            this.saveDataOnServer(saveData, {
+              response: res,
+              model,
+              ...formattedKwargs,
+              creation_time: new Date().toISOString(),
+              tags,
+            });
           }
         }
-      } catch (error) {
-        reject(error);
+        return res;
       }
-    });
+    }
   }
 }
