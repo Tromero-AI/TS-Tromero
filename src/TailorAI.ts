@@ -16,7 +16,7 @@ import {
   TromeroCompletionArgs,
 } from './tromeroUtils';
 import { MockStream } from './openai/streaming';
-import TromeroClient from './tromeroClient';
+import TromeroClient from './TromeroClient';
 
 interface TailorAIOptions extends openai.ClientOptions {
   apiKey: string;
@@ -44,26 +44,30 @@ export default class Tromero extends openai.OpenAI {
 }
 
 class MockChat extends openai.OpenAI.Chat {
-  setClient(client: TromeroClient) {
-    this.completions.tromeroClient = client;
+  completions: MockCompletions;
+
+  constructor(client: openai.OpenAI) {
+    super(client);
+    this.completions = new MockCompletions(client);
   }
 
-  completions: MockCompletions = new MockCompletions(
-    this._client,
-    this.completions.tromeroClient
-  );
+  setClient(client: TromeroClient) {
+    this.completions.setTromeroClient(client);
+  }
 }
 
 class MockCompletions extends openai.OpenAI.Chat.Completions {
   openaiClient: openai.OpenAI;
-  tromeroClient: TromeroClient;
+  tromeroClient: TromeroClient | undefined;
 
-  constructor(client: openai.OpenAI, tromeroClient: TromeroClient) {
+  constructor(client: openai.OpenAI) {
     super(client);
     this.openaiClient = client;
-    this.tromeroClient = tromeroClient;
   }
 
+  setTromeroClient(client: TromeroClient) {
+    this.tromeroClient = client;
+  }
   private choiceToDict(choice: Choice): Choice {
     return {
       message: {
@@ -78,8 +82,8 @@ class MockCompletions extends openai.OpenAI.Chat.Completions {
     data: any
   ): Promise<string> {
     try {
-      if (saveData) {
-        setTimeout(() => this.tromeroClient.postData(data), 0);
+      if (saveData && this.tromeroClient) {
+        setTimeout(() => this.tromeroClient!.postData(data), 0);
       }
     } catch (error) {}
     return '';
