@@ -1,7 +1,7 @@
 {
-  "name": "tromero_tailor",
+  "name": "tromero",
   "version": "1.0.0",
-  "description": "NPM package to conveniently integrate the Tromero Tailor service with your Javascript or Typescript application",
+  "description": "NPM package to conveniently integrate the Tromero service with your Javascript or Typescript application",
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
   "types": "./dist/index.d.ts",
@@ -24,7 +24,6 @@
   "license": "MIT",
   "devDependencies": {
     "@types/jest": "^29.5.12",
-    "axios-mock-adapter": "^1.22.0",
     "jest": "^29.7.0",
     "ts-jest": "^29.1.2",
     "ts-node": "^10.9.2",
@@ -32,7 +31,6 @@
     "typescript": "^5.4.5"
   },
   "dependencies": {
-    "axios": "^1.6.8",
     "openai": "^4.40.0"
   }
 }

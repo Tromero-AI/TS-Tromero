@@ -16,7 +16,7 @@ import {
   TromeroCompletionArgs,
 } from './tromeroUtils';
 import { MockStream } from './openai/streaming';
-import TromeroClient from './TromeroClient';
+import TromeroClient from './Tromero_Client';
 
 interface TailorAIOptions extends openai.ClientOptions {
   apiKey: string;
