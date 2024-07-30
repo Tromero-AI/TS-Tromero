@@ -264,6 +264,8 @@ class MockCompletions extends openai.OpenAI.Chat.Completions {
       | Response
       | any;
 
+    let modelForLogs = model;
+
     if (isOpenAiModel) {
       try {
         if (body.stream) {
@@ -273,7 +275,7 @@ class MockCompletions extends openai.OpenAI.Chat.Completions {
               if (!saveData) return Promise.resolve('');
               const dataToSend = {
                 messages: [...messages, response?.choices[0].message],
-                model,
+                model: modelForLogs,
                 kwargs: openAiKwargs,
                 creation_time: new Date().toISOString(),
                 tags: Array.isArray(tags)
@@ -282,7 +284,6 @@ class MockCompletions extends openai.OpenAI.Chat.Completions {
                   ? tags
                   : '',
               };
-              console.log('dataToSend: ', dataToSend);
               return this.saveDataOnServer(saveData, dataToSend);
             });
           } catch (e) {
@@ -299,7 +300,7 @@ class MockCompletions extends openai.OpenAI.Chat.Completions {
               if (saveData) {
                 this.saveDataOnServer(saveData, {
                   messages: messages.concat([formattedChoice.message]),
-                  model,
+                  model: modelForLogs,
                   kwargs: openAiKwargs,
                   creation_time: new Date().toISOString(),
                   tags: Array.isArray(tags)
@@ -377,40 +378,51 @@ class MockCompletions extends openai.OpenAI.Chat.Completions {
       //     );
       //   } else {
       try {
-        const response = await this.tromeroClient.create(
-          model_request_name,
-          this.tromeroClient.modelUrls[model],
-          messages,
-          openAiKwargs
-        );
+        throw new Error('Not implemented');
+        // const response = await this.tromeroClient.create(
+        //   model_request_name,
+        //   this.tromeroClient.modelUrls[model],
+        //   messages,
+        //   openAiKwargs
+        // );
 
-        if (response.generated_text) {
-          res = mockOpenAIFormat(response.generated_text);
-        }
+        // if (response.generated_text) {
+        //   res = mockOpenAIFormat(response.generated_text);
+        // }
       } catch (error) {
         if (use_fallback && fallbackModel) {
+          modelForLogs = fallbackModel;
           const modifiedBody = {
             ...body,
             model: fallbackModel,
           };
           delete modifiedBody.fallbackModel;
-          res = this._create(modifiedBody as any, options);
+          res = await this._create(modifiedBody as any, options);
         }
       } finally {
-        if (saveData) {
-          const dataToSend = {
-            messages: messages.concat(res.choices.map(this.choiceToDict)),
-            model,
-            kwargs: openAiKwargs,
-            creation_time: new Date().toISOString(),
-            tags: Array.isArray(tags)
-              ? tags.join(', ')
-              : typeof tags === 'string'
-              ? tags
-              : '',
-          };
+        console.log('res', res);
 
-          // this.saveDataOnServer(saveData, dataToSend);
+        if (res.choices) {
+          console.log('res.choices', res.choices);
+          for (const choice of res.choices) {
+            const formattedChoice = this.choiceToDict(choice);
+            console.log('formattedChoice', formattedChoice);
+            if (saveData) {
+              const dataToSend = {
+                messages: messages.concat([formattedChoice.message]),
+                model: modelForLogs,
+                kwargs: openAiKwargs,
+                creation_time: new Date().toISOString(),
+                tags: Array.isArray(tags)
+                  ? tags.join(', ')
+                  : typeof tags === 'string'
+                  ? tags
+                  : '',
+              };
+
+              this.saveDataOnServer(saveData, dataToSend);
+            }
+          }
         }
       }
       return res;
