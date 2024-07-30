@@ -56,13 +56,13 @@ export default function mergeChunks(
         message: {
           role: 'assistant',
           ...choice.delta,
-          tool_calls: choice.delta?.tool_calls?.map(
-            (tc) =>
-              ({
-                ...tc,
-                id: tc.id ?? '',
-              } as ChatCompletionMessageToolCall)
-          ),
+          // tool_calls: choice.delta?.tool_calls?.map(
+          //   (tc) =>
+          //     ({
+          //       ...tc,
+          //       id: tc.id ?? '',
+          //     } as ChatCompletionMessageToolCall)
+          // ),
         } as ChatCompletionMessage,
       });
     }

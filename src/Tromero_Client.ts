@@ -117,8 +117,8 @@ export default class TromeroClient {
     modelUrl: string,
     messages: any[],
     parameters: any = {}
-  ): Promise<ApiResponse> {
-    return this.fetchData(`${modelUrl}/generate`, {
+  ) {
+    const response = await this.fetchData(`${modelUrl}/generate`, {
       method: 'POST',
       headers: {
         'X-API-KEY': this.apiKey,
@@ -126,6 +126,8 @@ export default class TromeroClient {
       },
       body: JSON.stringify({ adapter_name: model, messages, parameters }),
     });
+
+    return response;
   }
 
   // async createStream(

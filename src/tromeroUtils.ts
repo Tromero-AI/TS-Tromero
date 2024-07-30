@@ -10,6 +10,7 @@ export interface Choice {
 export interface CompletionResponse {
   choices: Choice[];
   usage?: any;
+  [key: string]: any;
 }
 
 export interface Model {
@@ -68,6 +69,9 @@ class Response {
 
 export function mockOpenAIFormat(messages: string): Response {
   const choice = new Choice(messages);
+
+  console.log('**************** mockOpenAIFormat ****************');
+  console.log(choice);
   return new Response([choice]);
 }
 
@@ -96,4 +100,11 @@ export type TromeroCompletionArgs = {
   saveData?: boolean;
   tags?: string[];
   fallbackModel?: string;
+};
+
+export type TromeroCompletionResponse = {
+  generated_text: string;
+  model: string;
+  creation_time: string;
+  tags: string;
 };
