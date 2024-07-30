@@ -387,28 +387,6 @@ class MockCompletions extends openai.OpenAI.Chat.Completions {
         if (response.generated_text) {
           res = mockOpenAIFormat(response.generated_text);
         }
-
-        if (res.choices) {
-          for (const choice of res.choices) {
-            const formattedChoice = this.choiceToDict(choice);
-            if (saveData) {
-              const dataToSend = {
-                messages: messages.concat([formattedChoice.message]),
-                model,
-                kwargs: openAiKwargs,
-                creation_time: new Date().toISOString(),
-                tags: Array.isArray(tags)
-                  ? tags.join(', ')
-                  : typeof tags === 'string'
-                  ? tags
-                  : '',
-              };
-
-              this.saveDataOnServer(saveData, dataToSend);
-            }
-          }
-        }
-        return res;
       } catch (error) {
         if (use_fallback && fallbackModel) {
           const modifiedBody = {
