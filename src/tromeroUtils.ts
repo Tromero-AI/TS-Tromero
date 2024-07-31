@@ -1,3 +1,13 @@
+import * as Core from 'openai/core';
+import type {
+  ChatCompletion,
+  ChatCompletionChunk,
+  ChatCompletionCreateParams,
+  ChatCompletionCreateParamsBase,
+  ChatCompletionCreateParamsNonStreaming,
+  ChatCompletionCreateParamsStreaming,
+} from 'openai/resources/chat/completions';
+
 export interface Message {
   role: string;
   content: string | null;
@@ -53,26 +63,38 @@ export class Message {
 
 export class Choice {
   message: Message;
+  finish_reason: string | null;
+  index: number;
+  logprobs: any;
 
   constructor(message: string) {
     this.message = new Message(message);
+    this.finish_reason = 'stop';
+    this.index = 0;
+    this.logprobs = null;
   }
 }
 
-class Response {
+export class Response {
   choices: Choice[];
+  id: string;
+  model: string;
+  created: string;
+  usage: any;
 
-  constructor(choices: Choice[]) {
+  constructor(choices: Choice[], model: string = '') {
     this.choices = choices;
+    this.id = '';
+    this.model = model;
+    this.created = '';
+    this.usage = {};
   }
 }
 
-export function mockOpenAIFormat(messages: string): Response {
+export function mockOpenAIFormat(messages: string, model: string): Response {
   const choice = new Choice(messages);
-
-  console.log('**************** mockOpenAIFormat ****************');
-  console.log(choice);
-  return new Response([choice]);
+  const response = new Response([choice], model);
+  return response;
 }
 
 class StreamChoice {

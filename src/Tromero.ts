@@ -14,6 +14,7 @@ import {
   CompletionResponse,
   Message,
   mockOpenAIFormat,
+  Response,
   TromeroCompletionArgs,
   TromeroCompletionResponse,
 } from './tromeroUtils';
@@ -80,6 +81,9 @@ class MockCompletions extends openai.OpenAI.Chat.Completions {
         content: choice.message.content,
         role: choice.message.role,
       },
+      finish_reason: choice.finish_reason || 'stop',
+      index: choice.index || 0,
+      logprobs: choice.logprobs || null,
     };
   }
 
@@ -244,6 +248,7 @@ class MockCompletions extends openai.OpenAI.Chat.Completions {
     | ChatCompletion
     | MockStream
     | Stream<ChatCompletionChunk | CompletionResponse>
+    | Response
     | undefined
   > {
     const {
@@ -261,8 +266,7 @@ class MockCompletions extends openai.OpenAI.Chat.Completions {
       | ChatCompletion
       | Stream<ChatCompletionChunk>
       | MockStream
-      | Response
-      | any;
+      | Response;
 
     let modelForLogs = model;
 
@@ -293,7 +297,6 @@ class MockCompletions extends openai.OpenAI.Chat.Completions {
           }
         } else {
           res = await this._create(body, options);
-          console.log('res from openAI', res);
           if (res.choices) {
             for (const choice of res.choices) {
               const formattedChoice = this.choiceToDict(choice);
@@ -331,7 +334,7 @@ class MockCompletions extends openai.OpenAI.Chat.Completions {
         this.tromeroClient.baseModel[model] = baseModel;
       }
 
-      const model_request_name = this.tromeroClient.baseModel[model]
+      const modelRequestName = this.tromeroClient.baseModel[model]
         ? 'NO_ADAPTER'
         : model;
 
@@ -378,17 +381,17 @@ class MockCompletions extends openai.OpenAI.Chat.Completions {
       //     );
       //   } else {
       try {
-        throw new Error('Not implemented');
-        // const response = await this.tromeroClient.create(
-        //   model_request_name,
-        //   this.tromeroClient.modelUrls[model],
-        //   messages,
-        //   openAiKwargs
-        // );
+        const response = await this.tromeroClient.create(
+          modelRequestName,
+          this.tromeroClient.modelUrls[model],
+          messages,
+          openAiKwargs
+        );
 
-        // if (response.generated_text) {
-        //   res = mockOpenAIFormat(response.generated_text);
-        // }
+        if (response.generated_text) {
+          res = mockOpenAIFormat(response.generated_text, modelRequestName);
+        }
+        // TOD: res need to match the response type of the openai create method
       } catch (error) {
         if (use_fallback && fallbackModel) {
           modelForLogs = fallbackModel;
@@ -397,12 +400,15 @@ class MockCompletions extends openai.OpenAI.Chat.Completions {
             model: fallbackModel,
           };
           delete modifiedBody.fallbackModel;
-          res = await this._create(modifiedBody as any, options);
+          res = await this._create(
+            modifiedBody as ChatCompletionCreateParamsNonStreaming,
+            options
+          );
         }
       } finally {
         console.log('res', res);
 
-        if (res.choices) {
+        if (res?.choices) {
           console.log('res.choices', res.choices);
           for (const choice of res.choices) {
             const formattedChoice = this.choiceToDict(choice);
