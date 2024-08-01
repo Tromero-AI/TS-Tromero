@@ -9,7 +9,7 @@ import type {
 } from 'openai/resources/chat/completions';
 
 export interface Message {
-  role: string;
+  role: 'assistant' | 'user' | 'system' | 'tool' | undefined;
   content: string | null;
 }
 
@@ -17,11 +17,11 @@ export interface Choice {
   message: Message;
 }
 
-export interface CompletionResponse {
-  choices: Choice[];
-  usage?: any;
-  [key: string]: any;
-}
+// export interface CompletionResponse {
+//   choices: Choice[];
+//   usage?: any;
+//   [key: string]: any;
+// }
 
 export interface Model {
   id: string;
@@ -53,9 +53,12 @@ export interface TromeroCreateResponse {
 
 export class Message {
   content: string | null;
-  role: string;
+  role: 'assistant' | 'user' | 'system' | 'tool' | undefined;
 
-  constructor(content: string, role: string = 'assistant') {
+  constructor(
+    content: string,
+    role: 'assistant' | 'user' | 'system' | 'tool' | undefined = 'assistant'
+  ) {
     this.content = content;
     this.role = role;
   }
@@ -67,10 +70,10 @@ export class Choice {
   index: number;
   logprobs: any;
 
-  constructor(message: string) {
+  constructor(message: string, index: number = 0) {
     this.message = new Message(message);
     this.finish_reason = 'stop';
-    this.index = 0;
+    this.index = index;
     this.logprobs = null;
   }
 }
@@ -79,21 +82,27 @@ export class Response {
   choices: Choice[];
   id: string;
   model: string;
-  created: string;
+  created: number;
   usage: any;
+  object: string;
 
-  constructor(choices: Choice[], model: string = '') {
+  constructor(choices: Choice[], model: string = '', usage = {}) {
     this.choices = choices;
     this.id = '';
+    this.object = 'chat.completion';
     this.model = model;
-    this.created = '';
-    this.usage = {};
+    this.created = Math.floor(Date.now() / 1000);
+    this.usage = usage;
   }
 }
 
-export function mockOpenAIFormat(messages: string, model: string): Response {
+export function mockOpenAIFormat(
+  messages: string,
+  model: string,
+  usage: { [key: string]: string }
+): Response {
   const choice = new Choice(messages);
-  const response = new Response([choice], model);
+  const response = new Response([choice], model, usage);
   return response;
 }
 
@@ -130,3 +139,75 @@ export type TromeroCompletionResponse = {
   creation_time: string;
   tags: string;
 };
+
+// {"id":"chatcmpl-123","object":"chat.completion.chunk","created":1694268190,"model":"gpt-4o-mini", "system_fingerprint": "fp_44709d6fcb", "choices":[{"index":0,"delta":{"role":"assistant","content":""},"logprobs":null,"finish_reason":null}]}
+
+// from the sample object above, create the interface
+
+// export interface ChatCompletionChunkStream {
+//   id: string;
+//   object: string;
+//   created: number;
+//   model: string;
+//   system_fingerprint?: string;
+//   choices: ChoiceStream[];
+// }
+
+interface ChatCompletionChunkStreamParams {
+  id?: string;
+  object?: string;
+  created?: number;
+  model: string;
+  system_fingerprint?: string;
+  choices?: ChoiceStream[];
+  streamResponse: string;
+  finishReason?: any;
+}
+
+interface ChoiceStream {
+  index: number;
+  delta: Message;
+  logprobs: any;
+  finish_reason: any;
+}
+
+export class ChatCompletionChunkStreamClass {
+  id: string;
+  object: 'chat.completion.chunk';
+  created: number;
+  model: string;
+  system_fingerprint?: string;
+  choices: ChoiceStream[];
+  streamResponse: string;
+  finishReason: any;
+
+  constructor({
+    id = '',
+    object = 'chat.completion.chunk' as const,
+    created = Math.floor(Date.now() / 1000),
+    model,
+    system_fingerprint,
+    streamResponse,
+    finishReason = null,
+  }: ChatCompletionChunkStreamParams) {
+    this.id = id;
+    this.object = 'chat.completion.chunk';
+    this.created = created;
+    this.model = model;
+    this.system_fingerprint = system_fingerprint;
+    this.streamResponse = streamResponse;
+    this.finishReason = finishReason;
+    this.choices = [
+      {
+        index: 0,
+        delta: new Message(streamResponse),
+        logprobs: null,
+        finish_reason: finishReason,
+      },
+    ];
+  }
+
+  getChoices(): ChoiceStream[] {
+    return this.choices;
+  }
+}

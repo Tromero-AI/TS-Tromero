@@ -10,8 +10,9 @@ import type {
   ChatCompletionCreateParamsStreaming,
 } from 'openai/resources/chat/completions';
 import {
+  ChatCompletionChunkStreamClass,
   Choice,
-  CompletionResponse,
+  // CompletionResponse,
   Message,
   mockOpenAIFormat,
   Response,
@@ -20,6 +21,7 @@ import {
 } from './tromeroUtils';
 import { MockStream } from './openai/streaming';
 import TromeroClient from './Tromero_Client';
+import { StreamResponse } from './tromero/streaming';
 
 interface TromeroOptions extends openai.ClientOptions {
   apiKey?: string;
@@ -247,9 +249,10 @@ class MockCompletions extends openai.OpenAI.Chat.Completions {
   ): Promise<
     | ChatCompletion
     | MockStream
-    | Stream<ChatCompletionChunk | CompletionResponse>
+    | Stream<ChatCompletionChunk>
     | Response
     | undefined
+    | any
   > {
     const {
       model,
@@ -266,7 +269,9 @@ class MockCompletions extends openai.OpenAI.Chat.Completions {
       | ChatCompletion
       | Stream<ChatCompletionChunk>
       | MockStream
-      | Response;
+      | Response
+      | undefined
+      | any;
 
     let modelForLogs = model;
 
@@ -338,77 +343,86 @@ class MockCompletions extends openai.OpenAI.Chat.Completions {
         ? 'NO_ADAPTER'
         : model;
 
-      //   if (body.stream) {
-      //     const onData = (data: any) => {
-      //       if (saveData) {
-      //         this.saveDataOnServer(saveData, {
-      //           response: data,
-      //           model,
-      //           ...formattedKwargs,
-      //           creation_time: new Date().toISOString(),
-      //           tags,
-      //         });
-      //       }
-      //     };
-      //     const onError = async (error: Error) => {
-      //       if (use_fallback && fallbackModel) {
-      //         const modifiedBody: ChatCompletionCreateParamsStreaming = {
-      //           ...body,
-      //           model: fallbackModel,
-      //         };
-      //         res = await this._create(modifiedBody, options);
-      //       }
-      //       if (saveData) {
-      //         this.saveDataOnServer(saveData, {
-      //           response: res,
-      //           model,
-      //           ...formattedKwargs,
-      //           creation_time: new Date().toISOString(),
-      //           tags,
-      //         });
-      //       }
-      //     };
-      //     const onEnd = () => {};
-
-      //     res = await this.tromeroClient.createStream(
-      //       model_request_name,
-      //       this.tromeroClient.modelUrls[model],
-      //       messages,
-      //       formattedKwargs,
-      //       onData,
-      //       onError,
-      //       onEnd
-      //     );
-      //   } else {
-      try {
-        const response = await this.tromeroClient.create(
-          modelRequestName,
-          this.tromeroClient.modelUrls[model],
-          messages,
-          openAiKwargs
-        );
-
-        if (response.generated_text) {
-          res = mockOpenAIFormat(response.generated_text, modelRequestName);
-        }
-        // TOD: res need to match the response type of the openai create method
-      } catch (error) {
-        if (use_fallback && fallbackModel) {
-          modelForLogs = fallbackModel;
-          const modifiedBody = {
-            ...body,
-            model: fallbackModel,
-          };
-          delete modifiedBody.fallbackModel;
-          res = await this._create(
-            modifiedBody as ChatCompletionCreateParamsNonStreaming,
-            options
+      if (body.stream) {
+        try {
+          const response = await this.tromeroClient.createStream(
+            modelRequestName,
+            this.tromeroClient.modelUrls[model],
+            messages,
+            openAiKwargs
           );
-        }
-      } finally {
-        console.log('res', res);
 
-        if (res?.choices) {
+          console.log('response from create stream', response);
+
+          if (!response) {
+            throw new Error('No response from Tromero');
+          } else {
+            const streamResponse = new StreamResponse(
+              response,
+              modelRequestName
+            );
+            // convert streamResponse to match type ChatCompletionChunkStream
+            try {
+              for await (const formattedChunk of streamResponse) {
+                console.log('formattedChunk', formattedChunk);
+                //   //   const response = new ChatCompletionChunkStreamClass({
+                //   //     model: modelRequestName,
+                //   //     streamResponse: formattedChunk,
+                //   //   });
+                //   //   console.log('response inside:', response);
+                //   //   res = response.getChoices();
+                //   //   console.log('formattedChunk', formattedChunk);
+                //   //   return res as ReadableStream;
+              }
+            } catch (streamError) {
+              console.error('Stream processing error:', streamError);
+            }
+          }
+        } catch (e) {
+          console.log('error', e);
+          // use fallback if it exists and was requested
+        }
+
+        //     res = await this.tromeroClient.createStream(
+        //       model_request_name,
+        //       this.tromeroClient.modelUrls[model],
+        //       messages,
+        //       formattedKwargs,
+        //       onData,
+        //       onError,
+        //       onEnd
+        //     );
+      } else {
+        try {
+          const response = await this.tromeroClient.create(
+            modelRequestName,
+            this.tromeroClient.modelUrls[model],
+            messages,
+            openAiKwargs
+          );
+          if (response.generated_text && response.usage) {
+            res = mockOpenAIFormat(
+              response.generated_text,
+              modelRequestName,
+              response.usage
+            );
+          }
+        } catch (error) {
+          if (use_fallback && fallbackModel) {
+            modelForLogs = fallbackModel;
+            const modifiedBody = {
+              ...body,
+              model: fallbackModel,
+            };
+            delete modifiedBody.fallbackModel;
+            res = await this._create(
+              modifiedBody as ChatCompletionCreateParamsNonStreaming,
+              options
+            );
+          }
+        }
+        console.log('res', res);
+        if (res && 'choices' in res) {
           console.log('res.choices', res.choices);
           for (const choice of res.choices) {
             const formattedChoice = this.choiceToDict(choice);
@@ -425,14 +439,12 @@ class MockCompletions extends openai.OpenAI.Chat.Completions {
                   ? tags
                   : '',
               };
-
               this.saveDataOnServer(saveData, dataToSend);
             }
           }
         }
+        // return res;
       }
-      return res;
-      //   }
     }
   }
 }

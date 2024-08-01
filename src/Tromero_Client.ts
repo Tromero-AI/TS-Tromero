@@ -1,5 +1,7 @@
 import { ChatCompletionChunk } from 'openai/resources';
 import { mockOpenAIFormatStream } from './tromeroUtils';
+import { StreamResponse } from './tromero/streaming';
+import { Readable } from 'stream';
 
 interface TromeroAIOptions {
   apiKey: string;
@@ -128,6 +130,57 @@ export default class TromeroClient {
     });
 
     return response;
+  }
+
+  async createStream(
+    model: string,
+    modelUrl: string,
+    messages: any[],
+    parameters: any = {}
+  ): Promise<ReadableStream> {
+    // [StreamResponse | null, { error: string; status_code: string } | null]
+    const headers = {
+      'Content-Type': 'application/json',
+      'X-API-KEY': this.apiKey,
+    };
+    const data = {
+      adapter_name: model,
+      messages,
+      parameters,
+    };
+
+    try {
+      const response = await fetch(`${modelUrl}/generate_stream`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(data),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      // console.log('type of response.body: ', typeof response.body);
+      // console.log('response.body: ', response.body);
+
+      // Ensure the response body is a readable stream
+      if (!(response.body instanceof ReadableStream)) {
+        throw new Error('Response body is not a readable stream');
+      }
+
+      // Log details about the response body
+      // console.log('Response body:', response.body);
+      // console.log('Is Readable:', response.body instanceof ReadableStream);
+      // console.log('Readable state:', response.body.locked);
+
+      return response.body as ReadableStream;
+    } catch (error) {
+      if (error instanceof Error) {
+        throw new Error(`An error occurred: ${error.message}`);
+      } else {
+        throw new Error('An error occurred');
+      }
+    }
   }
 
   // async createStream(
