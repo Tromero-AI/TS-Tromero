@@ -10,18 +10,14 @@ import type {
   ChatCompletionCreateParamsStreaming,
 } from 'openai/resources/chat/completions';
 import {
-  ChatCompletionChunkStreamClass,
   Choice,
-  // CompletionResponse,
   Message,
   mockOpenAIFormat,
   Response,
   TromeroCompletionArgs,
-  TromeroCompletionResponse,
 } from './tromeroUtils';
 import { MockStream } from './openai/streaming';
 import TromeroClient from './Tromero_Client';
-import { StreamResponse } from './tromero/streaming';
 
 interface TromeroOptions extends openai.ClientOptions {
   apiKey?: string;
@@ -362,6 +358,7 @@ class MockCompletions extends openai.OpenAI.Chat.Completions {
             throw err;
           }
 
+          // if save data is true, save the data
           return resp;
         } catch (e) {
           if (use_fallback && fallbackModel) {
@@ -440,7 +437,6 @@ class MockCompletions extends openai.OpenAI.Chat.Completions {
             });
           }
         }
-        console.log('res', res);
         if (res && 'choices' in res) {
           console.log('res.choices', res.choices);
           for (const choice of res.choices) {

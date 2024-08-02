@@ -1,16 +1,8 @@
-import { ChatCompletionChunkStreamClass } from './tromeroUtils';
-
-interface TromeroAIOptions {
-  apiKey: string;
-  baseURL?: string;
-  dataURL?: string;
-}
-
-interface ApiResponse {
-  error?: string;
-  status_code: string | number;
-  [key: string]: any;
-}
+import {
+  ApiResponse,
+  ChatCompletionChunkStreamClass,
+  TromeroAIOptions,
+} from './tromeroUtils';
 
 export default class TromeroClient {
   private dataURL: string;
@@ -77,40 +69,6 @@ export default class TromeroClient {
     });
   }
 
-  // mockOpenAIFormatStream(messages: string): any {
-  //   const choice = { delta: { content: messages } };
-  //   return { choices: [choice] };
-  // }
-
-  // async *streamResponse(
-  //   response: Response
-  // ): AsyncGenerator<any, void, unknown> {
-  //   const reader = response.body?.getReader();
-  //   const decoder = new TextDecoder('utf-8');
-  //   let lastChunk = '';
-
-  //   if (reader) {
-  //     while (true) {
-  //       const { done, value } = await reader.read();
-  //       if (done) break;
-
-  //       const chunkStr = decoder.decode(value);
-  //       lastChunk = chunkStr;
-
-  //       const pattern = /"token":({.*?})/;
-  //       const match = pattern.exec(chunkStr);
-
-  //       if (match) {
-  //         const json = JSON.parse(match[1]);
-  //         const formattedChunk = this.mockOpenAIFormatStream(json['text']);
-  //         yield formattedChunk;
-  //       } else {
-  //         break;
-  //       }
-  //     }
-  //   }
-  // }
-
   async create(
     model: string,
     modelUrl: string,
@@ -153,8 +111,6 @@ export default class TromeroClient {
         headers,
         body: JSON.stringify(data),
       });
-
-      if (model) throw new Error('Model not found');
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -200,7 +156,6 @@ export default class TromeroClient {
           }
         }
       } finally {
-        console.log('fullText', fullText);
         reader.releaseLock();
       }
     } catch (error) {

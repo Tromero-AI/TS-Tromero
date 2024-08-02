@@ -1,54 +1,13 @@
-import * as Core from 'openai/core';
-import type {
-  ChatCompletion,
-  ChatCompletionChunk,
-  ChatCompletionCreateParams,
-  ChatCompletionCreateParamsBase,
-  ChatCompletionCreateParamsNonStreaming,
-  ChatCompletionCreateParamsStreaming,
-} from 'openai/resources/chat/completions';
-
-export interface Message {
-  role: 'assistant' | 'user' | 'system' | 'tool' | undefined;
-  content: string | null;
+export interface TromeroAIOptions {
+  apiKey: string;
+  baseURL?: string;
+  dataURL?: string;
 }
 
-export interface Choice {
-  message: Message;
-}
-
-// export interface CompletionResponse {
-//   choices: Choice[];
-//   usage?: any;
-//   [key: string]: any;
-// }
-
-export interface Model {
-  id: string;
-}
-
-export interface SaveData {
-  messages: Message[];
-  model: string;
-  kwargs: any;
-  creation_time: string;
-  tags: string;
-  usage?: any;
-}
-
-export interface Client {
-  modelUrls: { [key: string]: string };
-  isBaseModel: { [key: string]: boolean };
-  tromero_key: string;
-  saveData: boolean;
-}
-
-export type StreamResponse = AsyncIterable<{
-  choices: { delta: { content: string } }[];
-}>;
-
-export interface TromeroCreateResponse {
-  generated_text?: string;
+export interface ApiResponse {
+  error?: string;
+  status_code: string | number;
+  [key: string]: any;
 }
 
 export class Message {
@@ -104,27 +63,6 @@ export function mockOpenAIFormat(
   const choice = new Choice(messages);
   const response = new Response([choice], model, usage);
   return response;
-}
-
-class StreamChoice {
-  delta: Message;
-
-  constructor(message: string) {
-    this.delta = new Message(message);
-  }
-}
-
-export class StreamResponseObject {
-  choices: StreamChoice[];
-
-  constructor(choices: StreamChoice[]) {
-    this.choices = choices;
-  }
-}
-
-export function mockOpenAIFormatStream(messages: string): StreamResponseObject {
-  const choice = new StreamChoice(messages);
-  return new StreamResponseObject([choice]);
 }
 
 export type TromeroCompletionArgs = {
