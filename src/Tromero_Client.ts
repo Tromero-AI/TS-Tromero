@@ -190,7 +190,11 @@ export default class TromeroClient {
               fullText += content;
             }
           } catch (error) {
-            console.error(`Error parsing JSON: ${error}`);
+            yield new ChatCompletionChunkStreamClass({
+              model: model,
+              streamResponse: chunkStr,
+              finishReason: 'stop',
+            });
             continue;
           }
         }
