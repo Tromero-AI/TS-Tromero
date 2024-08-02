@@ -294,8 +294,7 @@ class MockCompletions extends openai.OpenAI.Chat.Completions {
               return this.saveDataOnServer(saveData, dataToSend);
             });
           } catch (e) {
-            console.error('Tromero: error creating Mock stream');
-            console.error(e);
+            console.error('Tromero: error creating Mock stream', e);
             throw e;
           }
         } else {
@@ -328,6 +327,9 @@ class MockCompletions extends openai.OpenAI.Chat.Completions {
             : rawMessage;
           console.warn('Error in create: ', message);
           throw error;
+        } else {
+          console.error('unexpected error in create', error);
+          throw error;
         }
       }
     } else if (this.tromeroClient) {
@@ -352,6 +354,7 @@ class MockCompletions extends openai.OpenAI.Chat.Completions {
               ? {
                   ...openAiParams,
                   saveData,
+                  model: modelForLogs,
                   kwargs: openAiParams,
                   tags: Array.isArray(tags)
                     ? tags.join(', ')

@@ -163,7 +163,7 @@ export default class TromeroClient {
             messages: messages.concat([
               { role: 'assistant', content: fullText },
             ]),
-            model,
+            model: parameters.model,
             kwargs: parameters.kwargs,
             creation_time: new Date().toISOString(),
             tags: parameters.tags,
