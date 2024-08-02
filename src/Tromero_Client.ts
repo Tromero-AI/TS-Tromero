@@ -4,6 +4,17 @@ import {
   TromeroAIOptions,
 } from './tromeroUtils';
 
+/**
+ * TromeroClient is a class that allows you to interact with the Tromero API.
+ * It provides methods to create completions and streams of completions.
+ * @param apiKey: The API key to authenticate with the Tromero API.
+ * @param baseURL: The base URL of the Tromero API.
+ * @param dataURL: The URL to send data to the Tromero API.
+ * @param modelUrls: A dictionary of model names to their respective URLs (so you don't have to fetch them each time).
+ * @param baseModel: A dictionary of model names to their respective base models (so you don't have to fetch them each time).
+ * @returns A new TromeroClient instance.
+ */
+
 export default class TromeroClient {
   private dataURL: string;
   private baseURL: string;
@@ -23,6 +34,12 @@ export default class TromeroClient {
     this.baseModel = {};
   }
 
+  /**
+   * Fetches data from the given URL and returns it as a JSON object.
+   * @param url
+   * @param options
+   * @returns The response data as a JSON object.
+   */
   private async fetchData(
     url: string,
     options: RequestInit
@@ -48,6 +65,12 @@ export default class TromeroClient {
     }
   }
 
+  /**
+   * Endpoint to send data to the Tromero API.
+   * @param url
+   * @param options
+   * @returns The response data as a JSON object.
+   */
   async postData(data: any): Promise<ApiResponse> {
     return this.fetchData(this.dataURL, {
       method: 'POST',
@@ -59,6 +82,13 @@ export default class TromeroClient {
     });
   }
 
+  /**
+   * Endpoint to get the URL of a model.
+   * @param modelName
+   * @returns The response data as a JSON object.
+   * @throws An error if the request fails.
+   * @throws An error if the response is not JSON.
+   */
   async getModelUrl(modelName: string): Promise<ApiResponse> {
     return this.fetchData(`${this.baseURL}/model/${modelName}/url`, {
       method: 'GET',
@@ -87,6 +117,15 @@ export default class TromeroClient {
     return response;
   }
 
+  /**
+   * Creates a stream of completions from the Tromero API.
+   * @param model - The model to use for the completions.
+   * @param modelUrl - The URL of the model.
+   * @param messages - The messages to send to the model.
+   * @param parameters - The parameters to send to the model.
+   * @param callback - A callback function to call after each completion.
+   * @returns An async iterable of completion chunks.
+   */
   async *createStream(
     model: string,
     modelUrl: string,

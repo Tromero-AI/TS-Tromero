@@ -26,6 +26,15 @@ interface TromeroOptions extends openai.ClientOptions {
   saveData?: boolean;
 }
 
+/**
+ * The Tromero client.
+ * @extends OpenAI
+ * @param tromeroKey - The API key for the Tromero API.
+ * @param apiKey - The API key for the OpenAI API.
+ * @param saveData - Whether to save the data to the server.
+ * @param opts - The options to pass to the OpenAI client.
+ * @returns The Tromero client.
+ */
 export default class Tromero extends openai.OpenAI {
   public tromeroClient?: TromeroClient;
 
@@ -51,6 +60,11 @@ export default class Tromero extends openai.OpenAI {
   chat: MockChat = new MockChat(this);
 }
 
+/**
+ * A mock chat class that uses the Tromero client.
+ * @param client - The OpenAI client.
+ * @returns The mock chat class.
+ */
 class MockChat extends openai.OpenAI.Chat {
   completions: MockCompletions;
 
@@ -64,6 +78,11 @@ class MockChat extends openai.OpenAI.Chat {
   }
 }
 
+/**
+ * A mock completions class that uses the Tromero client.
+ * @param client - The OpenAI client.
+ * @returns The mock completions class.
+ */
 class MockCompletions extends openai.OpenAI.Chat.Completions {
   tromeroClient?: TromeroClient;
 
@@ -219,9 +238,7 @@ class MockCompletions extends openai.OpenAI.Chat.Completions {
     options?: Core.RequestOptions
   ): Core.APIPromise<ChatCompletion | Stream<ChatCompletionChunk>> {
     let resp: Core.APIPromise<ChatCompletion | Stream<ChatCompletionChunk>>;
-    resp = body.stream
-      ? super.create(body, options)
-      : super.create(body, options);
+    resp = super.create(body, options);
     return resp;
   }
 
@@ -328,7 +345,7 @@ class MockCompletions extends openai.OpenAI.Chat.Completions {
           console.warn('Error in create: ', message);
           throw error;
         } else {
-          console.error('unexpected error in create', error);
+          console.warn('unexpected error in create', error);
           throw error;
         }
       }
@@ -369,15 +386,11 @@ class MockCompletions extends openai.OpenAI.Chat.Completions {
           if (!resp || !resp[Symbol.asyncIterator]) {
             throw new Error('Stream not created using fallback if exists');
           }
-
-          // catch errors in the stream
           try {
             await resp.next();
           } catch (err) {
             throw err;
           }
-
-          // if save data is true, save the data
           return resp;
         } catch (e) {
           if (use_fallback && fallbackModel) {
