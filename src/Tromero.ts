@@ -10,6 +10,7 @@ import type {
   ChatCompletionCreateParamsStreaming,
 } from 'openai/resources/chat/completions';
 import {
+  ChatCompletionChunkStreamClass,
   Choice,
   Message,
   mockOpenAIFormat,
@@ -73,7 +74,8 @@ class MockCompletions extends openai.OpenAI.Chat.Completions {
   setTromeroClient(client: TromeroClient) {
     this.tromeroClient = client;
   }
-  private choiceToDict(choice: Choice): Choice {
+
+  private choiceToObject(choice: Choice): Choice {
     return {
       message: {
         content: choice.message.content,
@@ -97,9 +99,9 @@ class MockCompletions extends openai.OpenAI.Chat.Completions {
     return '';
   }
 
-  private async formatKwargs(kwargs: { [key: string]: any }): Promise<{
-    formattedKwargs: { [key: string]: any };
-    openAiKwargs: { [key: string]: any };
+  private async formatParams(kwargs: { [key: string]: any }): Promise<{
+    formattedParams: { [key: string]: any };
+    openAiParams: { [key: string]: any };
   }> {
     const keysToKeep = [
       'best_of',
@@ -135,14 +137,14 @@ class MockCompletions extends openai.OpenAI.Chat.Completions {
     ];
 
     const validKeys = new Set([...keysToKeep, ...additionalKeys]);
-    const formattedKwargs: { [key: string]: any } = {};
-    const openAiKwargs: { [key: string]: any } = {};
+    const formattedParams: { [key: string]: any } = {};
+    const openAiParams: { [key: string]: any } = {};
 
     let invalidKeyFound = false;
 
     for (const key in kwargs) {
       if (validKeys.has(key)) {
-        formattedKwargs[key] = kwargs[key];
+        formattedParams[key] = kwargs[key];
       } else {
         console.warn(
           `Warning: ${key} is not a valid parameter for the model. This parameter will be ignored.`
@@ -151,7 +153,7 @@ class MockCompletions extends openai.OpenAI.Chat.Completions {
       }
 
       if (keysToKeep.includes(key)) {
-        openAiKwargs[key] = kwargs[key];
+        openAiParams[key] = kwargs[key];
       }
     }
 
@@ -161,7 +163,7 @@ class MockCompletions extends openai.OpenAI.Chat.Completions {
         keysToKeep.join(', ')
       );
     }
-    return { formattedKwargs, openAiKwargs };
+    return { formattedParams, openAiParams };
   }
 
   private formatMessages(messages: Message[]): Message[] {
@@ -247,8 +249,8 @@ class MockCompletions extends openai.OpenAI.Chat.Completions {
     | MockStream
     | Stream<ChatCompletionChunk>
     | Response
+    | AsyncIterableIterator<ChatCompletionChunkStreamClass>
     | undefined
-    | any
   > {
     const {
       model,
@@ -257,7 +259,7 @@ class MockCompletions extends openai.OpenAI.Chat.Completions {
       ...kwargs
     } = body as any;
     const messages = this.formatMessages(kwargs.messages);
-    const { formattedKwargs, openAiKwargs } = await this.formatKwargs(kwargs);
+    const { formattedParams, openAiParams } = await this.formatParams(kwargs);
 
     let isOpenAiModel = await this.isModelFromOpenAi(model);
 
@@ -266,8 +268,8 @@ class MockCompletions extends openai.OpenAI.Chat.Completions {
       | Stream<ChatCompletionChunk>
       | MockStream
       | Response
-      | undefined
-      | any;
+      | AsyncIterableIterator<ChatCompletionChunkStreamClass>
+      | undefined;
 
     let modelForLogs = model;
 
@@ -281,7 +283,7 @@ class MockCompletions extends openai.OpenAI.Chat.Completions {
               const dataToSend = {
                 messages: [...messages, response?.choices[0].message],
                 model: modelForLogs,
-                kwargs: openAiKwargs,
+                kwargs: openAiParams,
                 creation_time: new Date().toISOString(),
                 tags: Array.isArray(tags)
                   ? tags.join(', ')
@@ -300,12 +302,12 @@ class MockCompletions extends openai.OpenAI.Chat.Completions {
           res = await this._create(body, options);
           if (res.choices) {
             for (const choice of res.choices) {
-              const formattedChoice = this.choiceToDict(choice);
+              const formattedChoice = this.choiceToObject(choice);
               if (saveData) {
                 this.saveDataOnServer(saveData, {
                   messages: messages.concat([formattedChoice.message]),
                   model: modelForLogs,
-                  kwargs: openAiKwargs,
+                  kwargs: openAiParams,
                   creation_time: new Date().toISOString(),
                   tags: Array.isArray(tags)
                     ? tags.join(', ')
@@ -348,16 +350,16 @@ class MockCompletions extends openai.OpenAI.Chat.Completions {
             messages,
             saveData
               ? {
-                  ...openAiKwargs,
+                  ...openAiParams,
                   saveData,
-                  kwargs: openAiKwargs,
+                  kwargs: openAiParams,
                   tags: Array.isArray(tags)
                     ? tags.join(', ')
                     : typeof tags === 'string'
                     ? tags
                     : '',
                 }
-              : openAiKwargs,
+              : openAiParams,
             callback
           );
 
@@ -391,7 +393,7 @@ class MockCompletions extends openai.OpenAI.Chat.Completions {
               const dataToSend = {
                 messages: [...messages, response?.choices[0].message],
                 model: modelForLogs,
-                kwargs: openAiKwargs,
+                kwargs: openAiParams,
                 creation_time: new Date().toISOString(),
                 tags: Array.isArray(tags)
                   ? tags.join(', ')
@@ -413,7 +415,7 @@ class MockCompletions extends openai.OpenAI.Chat.Completions {
             modelRequestName,
             this.tromeroClient.modelUrls[model],
             messages,
-            openAiKwargs
+            openAiParams
           );
           if (response.generated_text && response.usage) {
             res = mockOpenAIFormat(
@@ -434,33 +436,18 @@ class MockCompletions extends openai.OpenAI.Chat.Completions {
               modifiedBody as ChatCompletionCreateParamsNonStreaming,
               options
             );
-            return new MockStream(res, (response): Promise<string> => {
-              if (!saveData) return Promise.resolve('');
-              const dataToSend = {
-                messages: [...messages, response?.choices[0].message],
-                model: modelForLogs,
-                kwargs: openAiKwargs,
-                creation_time: new Date().toISOString(),
-                tags: Array.isArray(tags)
-                  ? tags.join(', ')
-                  : typeof tags === 'string'
-                  ? tags
-                  : '',
-              };
-              return this.saveDataOnServer(saveData, dataToSend);
-            });
           }
         }
         if (res && 'choices' in res) {
           console.log('res.choices', res.choices);
           for (const choice of res.choices) {
-            const formattedChoice = this.choiceToDict(choice);
+            const formattedChoice = this.choiceToObject(choice);
             console.log('formattedChoice', formattedChoice);
             if (saveData) {
               const dataToSend = {
                 messages: messages.concat([formattedChoice.message]),
                 model: modelForLogs,
-                kwargs: openAiKwargs,
+                kwargs: openAiParams,
                 creation_time: new Date().toISOString(),
                 tags: Array.isArray(tags)
                   ? tags.join(', ')
@@ -472,8 +459,12 @@ class MockCompletions extends openai.OpenAI.Chat.Completions {
             }
           }
         }
-        // return res;
+        return res;
       }
+    } else {
+      return Promise.reject(
+        'Error: Tromero client not set. Please set the client before calling create.'
+      );
     }
   }
 }
