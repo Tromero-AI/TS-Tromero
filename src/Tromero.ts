@@ -37,7 +37,7 @@ export default class Tromero extends openai.OpenAI {
     } else {
       if (apiKey) {
         console.warn(
-          "You're using the Tromero client without an OpenAI API key. While OpenAI requests will still go through, Tromero requests will fail, and no data will be saved."
+          "You're using the Tromero client without an OpenAI API key. You won't be able to use OpenAI models."
         );
       } else {
         console.warn(
@@ -341,12 +341,26 @@ class MockCompletions extends openai.OpenAI.Chat.Completions {
 
       if (body.stream) {
         try {
+          const callback = this.saveDataOnServer.bind(this);
           const resp = this.tromeroClient.createStream(
             modelRequestName,
             this.tromeroClient.modelUrls[model],
             messages,
-            openAiKwargs
+            saveData
+              ? {
+                  ...openAiKwargs,
+                  saveData,
+                  kwargs: openAiKwargs,
+                  tags: Array.isArray(tags)
+                    ? tags.join(', ')
+                    : typeof tags === 'string'
+                    ? tags
+                    : '',
+                }
+              : openAiKwargs,
+            callback
           );
+
           if (!resp || !resp[Symbol.asyncIterator]) {
             throw new Error('Stream not created using fallback if exists');
           }

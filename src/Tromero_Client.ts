@@ -93,7 +93,8 @@ export default class TromeroClient {
     messages: any[],
     parameters: {
       [key: string]: any;
-    } = {}
+    } = {},
+    callback?: (saveData: boolean, dataToSend: any) => Promise<string>
   ): AsyncIterableIterator<ChatCompletionChunkStreamClass> {
     const headers = {
       'Content-Type': 'application/json',
@@ -102,7 +103,7 @@ export default class TromeroClient {
     const data = {
       adapter_name: model,
       messages,
-      parameters,
+      parameters: parameters.saveData ? parameters.kwargs : parameters,
     };
 
     try {
@@ -157,6 +158,17 @@ export default class TromeroClient {
         }
       } finally {
         reader.releaseLock();
+        if (callback && parameters.saveData) {
+          await callback(true, {
+            messages: messages.concat([
+              { role: 'assistant', content: fullText },
+            ]),
+            model,
+            kwargs: parameters.kwargs,
+            creation_time: new Date().toISOString(),
+            tags: parameters.tags,
+          });
+        }
       }
     } catch (error) {
       throw error;
