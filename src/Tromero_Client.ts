@@ -14,7 +14,6 @@ import {
  * @param baseModel: A dictionary of model names to their respective base models (so you don't have to fetch them each time).
  * @returns A new TromeroClient instance.
  */
-
 export default class TromeroClient {
   private dataURL: string;
   private baseURL: string;
