@@ -68,31 +68,21 @@ const completion = await client.chat.completions.create({
 
 Tromero supports JSON response formatting, allowing you to specify the expected structure of the response using a JSON schema. Formatting works for models you have trained on Tromero.
 
-To utilize JSON formatting, you need to define a schema that describes the structure of the JSON object. The schema should conform to the JSON Schema standard. Here is an example schema:
+##### Specifying the Response Format in API Calls for OpenAI Models
+
+When making API calls to OpenAI models where you expect the response to adhere to a specific format, you can specify the JSON schema using the `response_format` parameter. Here’s how you can pass this parameter in your API calls (you must explicitly mention you want a json response in your request):
 
 ```javascript
-const schema = {
-  title: 'Person',
-  type: 'object',
-  properties: {
-    name: { title: 'Name', type: 'string', maxLength: 10 },
-    age: { title: 'Age', type: 'integer' },
-  },
-  required: ['name', 'age'],
-};
-```
-
-##### Specifying the Response Format in API Calls
-
-When making API calls where you expect the response to adhere to a specific format, you can specify the JSON schema using the `response_format` parameter. Here’s how you can pass this parameter in your API calls:
-
-```javascript
-const responseFormat = { type: 'json_object', schema };
-
 const response = await client.createCompletion({
   model: 'gpt-4o-mini',
-  messages: [{ role: 'user', content: 'Please provide your name and age.' }],
-  response_format: responseFormat,
+  messages: [
+    {
+      role: 'user',
+      content:
+        'Please provide your name and age. Use json format in the response',
+    },
+  ],
+  response_format: { type: 'json_object' },
 });
 ```
 
@@ -222,6 +212,50 @@ try {
 } catch (error) {
   console.error('Error:', error.message);
 }
+```
+
+### Full Example
+
+Here’s a complete example of using the Tromero API in Node.js to generate a chatbot response:
+
+```javascript
+import Tromero from 'tromero';
+
+const client = new Tromero({
+  apiKey: process.env.OPENAI_KEY,
+  tromeroKey: process.env.TROMERO_KEY,
+});
+
+const input = 'How are you doing today?';
+
+const completion = await client.chat.completions.create({
+  model: 'chatbot-202408',
+  messages: [
+    { role: 'system', content: 'You are a friendly chatbot.' },
+    { role: 'user', content: input },
+  ],
+  saveData: true,
+  tags: ['version-1', 'feedback'],
+  temperature: 0,
+  max_tokens: 100,
+  top_p: 1,
+  frequency_penalty: 0,
+  fallbackModel: 'gpt-4o-mini',
+  response_format: {
+    type: 'json_object',
+    schema: {
+      title: 'ChatbotResponse',
+      type: 'object',
+      properties: {
+        response: { type: 'string' },
+        sentiment: { type: 'string' },
+      },
+      required: ['response', 'sentiment'],
+    },
+  },
+});
+
+console.log('Response:', completion.choices[0]);
 ```
 
 ### Summary
