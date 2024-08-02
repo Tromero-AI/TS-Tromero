@@ -245,8 +245,6 @@ const completion = await client.chat.completions.create({
   tags: ['version-1', 'feedback'],
   fallbackModel: 'gpt-4o-mini',
 });
-
-console.log('Response:', completion.choices[0]);
 ```
 
 ### Summary
