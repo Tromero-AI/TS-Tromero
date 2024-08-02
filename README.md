@@ -229,30 +229,21 @@ const client = new Tromero({
 const input = 'How are you doing today?';
 
 const completion = await client.chat.completions.create({
-  model: 'chatbot-202408',
+  model: 'chatbot-202408', // or an OpenAI model
   messages: [
     { role: 'system', content: 'You are a friendly chatbot.' },
     { role: 'user', content: input },
   ],
-  saveData: true,
-  tags: ['version-1', 'feedback'],
   temperature: 0,
   max_tokens: 100,
   top_p: 1,
   frequency_penalty: 0,
+  stream: true,
+
+  // Tromero specific parameters
+  saveData: true,
+  tags: ['version-1', 'feedback'],
   fallbackModel: 'gpt-4o-mini',
-  response_format: {
-    type: 'json_object',
-    schema: {
-      title: 'ChatbotResponse',
-      type: 'object',
-      properties: {
-        response: { type: 'string' },
-        sentiment: { type: 'string' },
-      },
-      required: ['response', 'sentiment'],
-    },
-  },
 });
 
 console.log('Response:', completion.choices[0]);
