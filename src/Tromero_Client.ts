@@ -1,7 +1,4 @@
-import { ChatCompletionChunk } from 'openai/resources';
-import { mockOpenAIFormatStream } from './tromeroUtils';
-import { StreamResponse } from './tromero/streaming';
-import { Readable } from 'stream';
+import { ChatCompletionChunkStreamClass } from './tromeroUtils';
 
 interface TromeroAIOptions {
   apiKey: string;
@@ -80,39 +77,39 @@ export default class TromeroClient {
     });
   }
 
-  mockOpenAIFormatStream(messages: string): any {
-    const choice = { delta: { content: messages } };
-    return { choices: [choice] };
-  }
+  // mockOpenAIFormatStream(messages: string): any {
+  //   const choice = { delta: { content: messages } };
+  //   return { choices: [choice] };
+  // }
 
-  async *streamResponse(
-    response: Response
-  ): AsyncGenerator<any, void, unknown> {
-    const reader = response.body?.getReader();
-    const decoder = new TextDecoder('utf-8');
-    let lastChunk = '';
+  // async *streamResponse(
+  //   response: Response
+  // ): AsyncGenerator<any, void, unknown> {
+  //   const reader = response.body?.getReader();
+  //   const decoder = new TextDecoder('utf-8');
+  //   let lastChunk = '';
 
-    if (reader) {
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
+  //   if (reader) {
+  //     while (true) {
+  //       const { done, value } = await reader.read();
+  //       if (done) break;
 
-        const chunkStr = decoder.decode(value);
-        lastChunk = chunkStr;
+  //       const chunkStr = decoder.decode(value);
+  //       lastChunk = chunkStr;
 
-        const pattern = /"token":({.*?})/;
-        const match = pattern.exec(chunkStr);
+  //       const pattern = /"token":({.*?})/;
+  //       const match = pattern.exec(chunkStr);
 
-        if (match) {
-          const json = JSON.parse(match[1]);
-          const formattedChunk = this.mockOpenAIFormatStream(json['text']);
-          yield formattedChunk;
-        } else {
-          break;
-        }
-      }
-    }
-  }
+  //       if (match) {
+  //         const json = JSON.parse(match[1]);
+  //         const formattedChunk = this.mockOpenAIFormatStream(json['text']);
+  //         yield formattedChunk;
+  //       } else {
+  //         break;
+  //       }
+  //     }
+  //   }
+  // }
 
   async create(
     model: string,
@@ -132,13 +129,14 @@ export default class TromeroClient {
     return response;
   }
 
-  async createStream(
+  async *createStream(
     model: string,
     modelUrl: string,
     messages: any[],
-    parameters: any = {}
-  ): Promise<ReadableStream> {
-    // [StreamResponse | null, { error: string; status_code: string } | null]
+    parameters: {
+      [key: string]: any;
+    } = {}
+  ): AsyncIterableIterator<ChatCompletionChunkStreamClass> {
     const headers = {
       'Content-Type': 'application/json',
       'X-API-KEY': this.apiKey,
@@ -156,156 +154,57 @@ export default class TromeroClient {
         body: JSON.stringify(data),
       });
 
+      if (model) throw new Error('Model not found');
+
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
-      // console.log('type of response.body: ', typeof response.body);
-      // console.log('response.body: ', response.body);
-
-      // Ensure the response body is a readable stream
       if (!(response.body instanceof ReadableStream)) {
         throw new Error('Response body is not a readable stream');
       }
 
-      // Log details about the response body
-      // console.log('Response body:', response.body);
-      // console.log('Is Readable:', response.body instanceof ReadableStream);
-      // console.log('Readable state:', response.body.locked);
+      const reader = response?.body?.getReader();
+      let fullText = '';
 
-      return response.body as ReadableStream;
-    } catch (error) {
-      if (error instanceof Error) {
-        throw new Error(`An error occurred: ${error.message}`);
-      } else {
-        throw new Error('An error occurred');
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          let chunkStr = new TextDecoder('utf-8').decode(value);
+          try {
+            chunkStr = chunkStr.slice(5);
+            const chunkDict = JSON.parse(chunkStr);
+
+            if (!chunkDict || !chunkDict.token) {
+              console.error('Invalid chunkDict or token structure', chunkDict);
+              continue;
+            }
+
+            const responseChunk = new ChatCompletionChunkStreamClass({
+              model: model,
+              streamResponse: chunkDict.token.text,
+              finishReason: chunkDict.token.special ? 'stop' : null,
+            });
+
+            yield responseChunk;
+
+            const content = chunkDict.token.text;
+            if (content) {
+              fullText += content;
+            }
+          } catch (error) {
+            console.error(`Error parsing JSON: ${error}`);
+            continue;
+          }
+        }
+      } finally {
+        console.log('fullText', fullText);
+        reader.releaseLock();
       }
+    } catch (error) {
+      throw error;
     }
   }
-
-  // async createStream(
-  //   model: string,
-  //   modelUrl: string,
-  //   messages: any[],
-  //   parameters: { [key: string]: any },
-  //   onData: (data: any) => void,
-  //   onError: (error: Error) => void,
-  //   onEnd: () => void
-  // ) {
-  //   try {
-  //     const response = await fetch(`${modelUrl}/generate`, {
-  //       method: 'POST',
-  //       headers: {
-  //         'X-API-KEY': this.apiKey,
-  //         'Content-Type': 'application/json',
-  //       },
-  //       body: JSON.stringify({ messages, parameters, adapter_name: model }),
-  //     });
-
-  //     const reader = response.body?.getReader();
-  //     const decoder = new TextDecoder('utf-8');
-
-  //     if (reader) {
-  //       reader
-  //         .read()
-  //         .then(function process({ done, value }) {
-  //           if (done) {
-  //             onEnd();
-  //             return;
-  //           }
-
-  //           const chunk = decoder.decode(value, { stream: true });
-  //           onData(JSON.parse(chunk));
-
-  //           reader.read().then(process).catch(onError);
-  //         })
-  //         .catch(onError);
-  //     }
-  //   } catch (error) {
-  //     onError(error as Error);
-  //   }
-  // }
-
-  // async createStream(
-  //   model: string,
-  //   modelUrl: string,
-  //   messages: any[],
-  //   parameters: { [key: string]: any },
-  //   onData: (data: ChatCompletionChunk) => void,
-  //   onError: (error: Error) => void,
-  //   onEnd: () => void
-  // ) {
-  //   try {
-  //     const response = await fetch(`${modelUrl}/generate_stream`, {
-  //       method: 'POST',
-  //       headers: {
-  //         'X-API-KEY': this.apiKey,
-  //         'Content-Type': 'application/json',
-  //       },
-  //       body: JSON.stringify({ messages, parameters, adapter_name: model }),
-  //     });
-
-  //     if (!response.ok) {
-  //       throw new Error(`HTTP error! status: ${response.status}`);
-  //     }
-
-  //     const reader = response.body?.getReader();
-  //     const decoder = new TextDecoder('utf-8');
-
-  //     if (reader) {
-  //       let buffer = '';
-
-  //       const process = async ({
-  //         done,
-  //         value,
-  //       }: ReadableStreamDefaultReadResult<Uint8Array>) => {
-  //         if (done) {
-  //           onEnd();
-  //           return;
-  //         }
-
-  //         buffer += decoder.decode(value, { stream: true });
-  //         const parts = buffer.split('\n');
-  //         buffer = parts.pop()!; // Keep the last incomplete part in the buffer
-
-  //         for (const part of parts) {
-  //           if (part.startsWith('data:')) {
-  //             try {
-  //               const jsonStr = part.substring(5);
-  //               const data = JSON.parse(jsonStr);
-  //               if (data.token && data.token.text) {
-  //                 const formattedChunk: ChatCompletionChunk = {
-  //                   choices: [
-  //                     {
-  //                       finish_reason: null,
-  //                       index: 0,
-  //                       delta: {
-  //                         content: data.token.text,
-  //                       },
-  //                     },
-  //                   ],
-  //                   id: '',
-  //                   created: 0,
-  //                   model: '',
-  //                   object: 'chat.completion.chunk',
-  //                 };
-  //                 onData(formattedChunk);
-  //               }
-  //             } catch (error) {
-  //               console.error('Error parsing JSON data:', error);
-  //             }
-  //           }
-  //         }
-
-  //         reader.read().then(process).catch(onError);
-  //       };
-
-  //       reader.read().then(process).catch(onError);
-  //     } else {
-  //       onEnd();
-  //     }
-  //   } catch (error) {
-  //     onError(error as Error);
-  //   }
-  // }
 }

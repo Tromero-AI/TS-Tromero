@@ -345,53 +345,57 @@ class MockCompletions extends openai.OpenAI.Chat.Completions {
 
       if (body.stream) {
         try {
-          const response = await this.tromeroClient.createStream(
+          const resp = this.tromeroClient.createStream(
             modelRequestName,
             this.tromeroClient.modelUrls[model],
             messages,
             openAiKwargs
           );
-
-          console.log('response from create stream', response);
-
-          if (!response) {
-            throw new Error('No response from Tromero');
-          } else {
-            const streamResponse = new StreamResponse(
-              response,
-              modelRequestName
-            );
-            // convert streamResponse to match type ChatCompletionChunkStream
-            try {
-              for await (const formattedChunk of streamResponse) {
-                console.log('formattedChunk', formattedChunk);
-                //   //   const response = new ChatCompletionChunkStreamClass({
-                //   //     model: modelRequestName,
-                //   //     streamResponse: formattedChunk,
-                //   //   });
-                //   //   console.log('response inside:', response);
-                //   //   res = response.getChoices();
-                //   //   console.log('formattedChunk', formattedChunk);
-                //   //   return res as ReadableStream;
-              }
-            } catch (streamError) {
-              console.error('Stream processing error:', streamError);
-            }
+          if (!resp || !resp[Symbol.asyncIterator]) {
+            throw new Error('Stream not created using fallback if exists');
           }
-        } catch (e) {
-          console.log('error', e);
-          // use fallback if it exists and was requested
-        }
 
-        //     res = await this.tromeroClient.createStream(
-        //       model_request_name,
-        //       this.tromeroClient.modelUrls[model],
-        //       messages,
-        //       formattedKwargs,
-        //       onData,
-        //       onError,
-        //       onEnd
-        //     );
+          // catch errors in the stream
+          try {
+            await resp.next();
+          } catch (err) {
+            throw err;
+          }
+
+          return resp;
+        } catch (e) {
+          if (use_fallback && fallbackModel) {
+            modelForLogs = fallbackModel;
+            const modifiedBody = {
+              ...body,
+              model: fallbackModel,
+            };
+            delete modifiedBody.fallbackModel;
+            res = await this._create(
+              modifiedBody as ChatCompletionCreateParamsStreaming,
+              options
+            );
+            return new MockStream(res, (response): Promise<string> => {
+              if (!saveData) return Promise.resolve('');
+              const dataToSend = {
+                messages: [...messages, response?.choices[0].message],
+                model: modelForLogs,
+                kwargs: openAiKwargs,
+                creation_time: new Date().toISOString(),
+                tags: Array.isArray(tags)
+                  ? tags.join(', ')
+                  : typeof tags === 'string'
+                  ? tags
+                  : '',
+              };
+              return this.saveDataOnServer(saveData, dataToSend);
+            });
+          } else {
+            return Promise.reject(
+              'Error creating stream, you may need to use a fallback model'
+            );
+          }
+        }
       } else {
         try {
           const response = await this.tromeroClient.create(
@@ -419,6 +423,21 @@ class MockCompletions extends openai.OpenAI.Chat.Completions {
               modifiedBody as ChatCompletionCreateParamsNonStreaming,
               options
             );
+            return new MockStream(res, (response): Promise<string> => {
+              if (!saveData) return Promise.resolve('');
+              const dataToSend = {
+                messages: [...messages, response?.choices[0].message],
+                model: modelForLogs,
+                kwargs: openAiKwargs,
+                creation_time: new Date().toISOString(),
+                tags: Array.isArray(tags)
+                  ? tags.join(', ')
+                  : typeof tags === 'string'
+                  ? tags
+                  : '',
+              };
+              return this.saveDataOnServer(saveData, dataToSend);
+            });
           }
         }
         console.log('res', res);

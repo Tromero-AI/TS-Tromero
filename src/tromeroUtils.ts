@@ -140,19 +140,6 @@ export type TromeroCompletionResponse = {
   tags: string;
 };
 
-// {"id":"chatcmpl-123","object":"chat.completion.chunk","created":1694268190,"model":"gpt-4o-mini", "system_fingerprint": "fp_44709d6fcb", "choices":[{"index":0,"delta":{"role":"assistant","content":""},"logprobs":null,"finish_reason":null}]}
-
-// from the sample object above, create the interface
-
-// export interface ChatCompletionChunkStream {
-//   id: string;
-//   object: string;
-//   created: number;
-//   model: string;
-//   system_fingerprint?: string;
-//   choices: ChoiceStream[];
-// }
-
 interface ChatCompletionChunkStreamParams {
   id?: string;
   object?: string;
@@ -183,7 +170,6 @@ export class ChatCompletionChunkStreamClass {
 
   constructor({
     id = '',
-    object = 'chat.completion.chunk' as const,
     created = Math.floor(Date.now() / 1000),
     model,
     system_fingerprint,
@@ -191,7 +177,7 @@ export class ChatCompletionChunkStreamClass {
     finishReason = null,
   }: ChatCompletionChunkStreamParams) {
     this.id = id;
-    this.object = 'chat.completion.chunk';
+    this.object = 'chat.completion.chunk' as const;
     this.created = created;
     this.model = model;
     this.system_fingerprint = system_fingerprint;
