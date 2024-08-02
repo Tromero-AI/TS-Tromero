@@ -10,8 +10,8 @@ npm install tromero
 
 ## Getting Started
 
-Ensure you have set up both your OpenAI key and your Tromero key. You can follow the instructions on our site to create a Tromero key.
-[How to get a Tromero key](https://docs.tromero.ai/python-package/openai-compatibility#prerequisites)
+Ensure you have set up both your OpenAI key and your Tromero key. You can follow the instructions on our site to create a Tromero API key.
+[How to get a Tromero API key](https://docs.tromero.ai/python-package/openai-compatibility#prerequisites)
 
 ### Importing the Package
 
