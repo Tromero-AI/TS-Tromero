@@ -36,9 +36,6 @@ export class MockStream extends Stream<ChatCompletionChunk> {
       if (result.done) break;
       combinedResponse = mergeChunks(combinedResponse, result.value);
 
-      // console.log('MockStream', result.value);
-      // console.log('type:', typeof result.value);
-
       yield result.value;
     }
 

@@ -158,7 +158,7 @@ class MockCompletions extends openai.OpenAI.Chat.Completions {
     }
 
     if (invalidKeyFound) {
-      console.log(
+      console.warn(
         'The following parameters are valid for the model: ',
         keysToKeep.join(', ')
       );
@@ -442,10 +442,8 @@ class MockCompletions extends openai.OpenAI.Chat.Completions {
           }
         }
         if (res && 'choices' in res) {
-          console.log('res.choices', res.choices);
           for (const choice of res.choices) {
             const formattedChoice = this.choiceToObject(choice);
-            console.log('formattedChoice', formattedChoice);
             if (saveData) {
               const dataToSend = {
                 messages: messages.concat([formattedChoice.message]),
