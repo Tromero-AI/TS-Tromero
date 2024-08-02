@@ -33,8 +33,8 @@ Initialize the `Tromero` client using your API keys, which should be stored secu
 
 ```javascript
 const client = new TailorAI({
-  apiKey: process.env.OPENAI_KEY, // optional
-  tromeroKey: process.env.TROMERO_KEY,
+  apiKey: process.env.OPENAI_KEY, // optional if you are using OpenAI models
+  tromeroKey: process.env.TROMERO_KEY, // optional if you are using Tromero models
 });
 ```
 
