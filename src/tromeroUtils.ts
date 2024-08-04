@@ -1,3 +1,5 @@
+import type { ChatCompletionCreateParams } from 'openai/resources/chat/completions';
+
 export interface TromeroAIOptions {
   apiKey: string;
   baseURL?: string;
@@ -65,11 +67,62 @@ export function mockOpenAIFormat(
   return response;
 }
 
-export type TromeroCompletionArgs = {
-  saveData?: boolean;
-  tags?: string[];
+export type TromeroCompletionArgs = TromeroParams & TromeroArgs;
+
+export type InferenceParams<T extends 'OpenAI' | 'Tromero'> = T extends 'OpenAI'
+  ? ChatCompletionCreateParams
+  : TromeroParams;
+
+export type TromeroArgs = {
+  tags?: string[] | number[];
+  useFallback?: boolean;
   fallbackModel?: string;
+  saveData?: boolean;
 };
+
+export type FormattedParams = Omit<
+  TromeroCompletionArgs,
+  | 'formattedMessages'
+  | 'formattedParams'
+  | 'saveData'
+  | 'tags'
+  | 'fallbackModel'
+  | 'modelNameForLogs'
+  | 'useFallback'
+  | 'model'
+  | 'messages'
+>;
+
+export interface TromeroParams {
+  model: string;
+  messages: Message[];
+  n?: number;
+  best_of?: number;
+  presence_penalty?: number;
+  frequency_penalty?: number;
+  repetition_penalty?: number;
+  temperature?: number;
+  top_p?: number;
+  top_k?: number;
+  min_p?: number;
+  seed?: number;
+  use_beam_search?: boolean;
+  length_penalty?: number;
+  early_stopping?: boolean;
+  stop?: Array<string>;
+  stop_token_ids?: Array<number>;
+  include_stop_str_in_output?: boolean;
+  ignore_eos?: boolean;
+  max_tokens?: number;
+  min_tokens?: number;
+  logprobs?: number;
+  prompt_logprobs?: number;
+  detokenize?: boolean;
+  skip_special_tokens?: boolean;
+  spaces_between_special_tokens?: boolean;
+  logits_processors?: Array<Function>;
+  truncate_prompt_tokens?: number;
+}
 
 export type TromeroCompletionResponse = {
   generated_text: string;

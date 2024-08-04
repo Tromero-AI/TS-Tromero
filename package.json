@@ -9,7 +9,8 @@
   ],
   "scripts": {
     "test": "jest",
-    "build": "tsup"
+    "build": "tsup",
+    "fetch-openai-models": "ts-node src/scripts/fetchOpenAIModels.ts"
   },
   "keywords": [
     "tromero",
@@ -30,6 +31,7 @@
     "typescript": "^5.4.5"
   },
   "dependencies": {
+    "dotenv": "^16.4.5",
     "openai": "^4.40.0"
   }
 }
