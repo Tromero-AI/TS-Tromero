@@ -1,14 +1,11 @@
-import * as openai from 'openai';
 import Tromero from '../src/Tromero';
 import TromeroClient from '../src/Tromero_Client';
 import { MockStream } from '../src/openai/streaming';
 import * as tromeroUtils from '../src/tromeroUtils';
 import type {
-  ChatCompletion,
   ChatCompletionChunk,
   ChatCompletionCreateParams,
 } from 'openai/resources/chat/completions';
-import * as mergeChunksModule from '../src/openai/mergeChunks';
 import { Stream } from 'openai/streaming';
 
 jest.mock('openai');
@@ -48,7 +45,7 @@ describe('Tromero', () => {
 
   test('should call the create method and return a response', async () => {
     const body: ChatCompletionCreateParams &
-      tromeroUtils.TromeroCompletionArgs = {
+      tromeroUtils.TromeroCompletionParams = {
       model: 'test-model',
       messages: [{ role: 'user', content: 'Hello' }],
     };
@@ -76,7 +73,7 @@ describe('Tromero', () => {
 
   test('should handle stream response', async () => {
     const body: ChatCompletionCreateParams &
-      tromeroUtils.TromeroCompletionArgs = {
+      tromeroUtils.TromeroCompletionParams = {
       model: 'test-model',
       messages: [{ role: 'user', content: 'Hello' }],
       stream: true,

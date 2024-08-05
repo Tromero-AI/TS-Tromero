@@ -2,6 +2,7 @@ import {
   ApiResponse,
   ChatCompletionChunkStreamClass,
   Message,
+  ModelData,
   TromeroAIOptions,
 } from './tromeroUtils';
 
@@ -19,8 +20,9 @@ export default class TromeroClient {
   private dataURL: string;
   private baseURL: string;
   private apiKey: string;
-  modelUrls: { [key: string]: string };
-  baseModel: { [key: string]: any };
+  // modelUrls: { [key: string]: string };
+  // baseModel: { [key: string]: any };
+  modelData: ModelData;
 
   constructor({
     apiKey,
@@ -30,8 +32,9 @@ export default class TromeroClient {
     this.apiKey = apiKey;
     this.dataURL = dataURL;
     this.baseURL = baseURL;
-    this.modelUrls = {};
-    this.baseModel = {};
+    // this.modelUrls = {};
+    // this.baseModel = {};
+    this.modelData = {};
   }
 
   /**
@@ -52,15 +55,21 @@ export default class TromeroClient {
       }
       return data;
     } catch (error) {
+      if (error instanceof Response) {
+        return {
+          error: `An error occurred: ${error.statusText}`,
+          status_code: error.status,
+        };
+      }
       if (error instanceof Error) {
         return {
           error: `An error occurred: ${error.message}`,
-          status_code: 'N/A',
+          status_code: '',
         };
       }
       return {
         error: 'An error occurred',
-        status_code: 'N/A',
+        status_code: '',
       };
     }
   }

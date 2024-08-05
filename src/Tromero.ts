@@ -13,19 +13,14 @@ import type {
 } from 'openai/resources/chat/completions';
 import {
   ChatCompletionChunkStreamClass,
-  Choice,
-  FormattedParams,
-  Message,
   mockOpenAIFormat,
   MockChatCompletion,
   TromeroArgs,
-  TromeroCompletionArgs,
-  TromeroParams,
+  ModelDataDetails,
+  TromeroCompletionParams,
 } from './tromeroUtils';
 import { MockStream } from './openai/streaming';
 import TromeroClient from './Tromero_Client';
-import { getModelTypeOrFetch, ModelType } from './openai/models';
-import { Chat } from 'openai/resources';
 
 interface TromeroOptions extends openai.ClientOptions {
   apiKey?: string;
@@ -100,18 +95,19 @@ class MockCompletions extends openai.OpenAI.Chat.Completions {
     this.tromeroClient = client;
   }
 
-  // private choiceToObject(choice: Choice): Choice {
-  //   return {
-  //     message: {
-  //       content: choice.message.content || null,
-  //       role: choice.message.role || 'assistant'
+  private async isModelFromOpenAI(model: string): Promise<boolean> {
+    const data = await this._client.models.list();
 
-  //     },
-  //     finish_reason: choice.finish_reason || 'stop',
-  //     index: choice.index || 0,
-  //     logprobs: choice.logprobs || null,
-  //   };
-  // }
+    const models: string[] = data.data
+      .map((model: { id: string }): string | null =>
+        model.id.includes('gpt') && !model.id.includes('gpt-3.5-turbo-instruct')
+          ? model.id
+          : null
+      )
+      .filter((model: string | null): model is string => model !== null);
+
+    return models.includes(model);
+  }
 
   private async saveDataOnServer(
     saveData: boolean,
@@ -133,8 +129,10 @@ class MockCompletions extends openai.OpenAI.Chat.Completions {
    */
   private async formatParams(
     kwargs: { [key: string]: any },
-    modelType: ModelType
-  ): Promise<[ChatCompletionCreateParamsBase | TromeroParams, TromeroArgs]> {
+    isOpenAIModel: boolean
+  ): Promise<
+    [ChatCompletionCreateParamsBase | TromeroCompletionParams, TromeroArgs]
+  > {
     const validOpenAiKeys = new Set([
       'messages',
       'model',
@@ -198,7 +196,7 @@ class MockCompletions extends openai.OpenAI.Chat.Completions {
       'saveData',
     ]);
 
-    const tromeroParams: TromeroParams = { model: '', messages: [] };
+    const tromeroParams: TromeroCompletionParams = { model: '', messages: [] };
     const openAiParams: ChatCompletionCreateParamsBase = {
       model: '',
       messages: [],
@@ -208,7 +206,7 @@ class MockCompletions extends openai.OpenAI.Chat.Completions {
     let invalidKeyFound = false;
 
     for (const key in kwargs) {
-      if (modelType === 'OpenAI') {
+      if (isOpenAIModel) {
         if (validOpenAiKeys.has(key)) {
           (openAiParams as any)[key] = kwargs[key];
         } else {
@@ -235,12 +233,12 @@ class MockCompletions extends openai.OpenAI.Chat.Completions {
     if (invalidKeyFound) {
       console.warn(
         'For your reference, only the following parameters are valid based on your model: ',
-        modelType === 'OpenAI'
+        isOpenAIModel
           ? Array.from(validOpenAiKeys).join(', ')
           : Array.from(validTromeroKeys).join(', ')
       );
     }
-    return [modelType === 'OpenAI' ? openAiParams : tromeroParams, settings];
+    return [isOpenAIModel ? openAiParams : tromeroParams, settings];
   }
 
   private formatMessages(
@@ -293,19 +291,25 @@ class MockCompletions extends openai.OpenAI.Chat.Completions {
   }
 
   create(
-    body: ChatCompletionCreateParamsNonStreaming & TromeroCompletionArgs,
+    body: ChatCompletionCreateParamsNonStreaming &
+      TromeroCompletionParams &
+      TromeroArgs,
     options?: Core.RequestOptions
   ): Core.APIPromise<ChatCompletion>;
   create(
-    body: ChatCompletionCreateParamsStreaming & TromeroCompletionArgs,
+    body: ChatCompletionCreateParamsStreaming &
+      TromeroCompletionParams &
+      TromeroArgs,
     options?: Core.RequestOptions
   ): Core.APIPromise<MockStream>;
   create(
-    body: ChatCompletionCreateParamsBase & TromeroCompletionArgs,
+    body: ChatCompletionCreateParamsBase &
+      TromeroCompletionParams &
+      TromeroArgs,
     options?: Core.RequestOptions
   ): Core.APIPromise<Stream<ChatCompletionChunk> | ChatCompletion>;
   async create(
-    body: ChatCompletionCreateParams & TromeroCompletionArgs,
+    body: ChatCompletionCreateParams & TromeroCompletionParams & TromeroArgs,
     options?: Core.RequestOptions
   ): Promise<
     | ChatCompletion
@@ -314,12 +318,13 @@ class MockCompletions extends openai.OpenAI.Chat.Completions {
     | MockChatCompletion
     | AsyncIterableIterator<ChatCompletionChunkStreamClass>
     | undefined
+    | Error
   > {
     return await this.handleChatCompletion(body, options);
   }
 
   async handleChatCompletion(
-    body: ChatCompletionCreateParams & TromeroCompletionArgs,
+    body: ChatCompletionCreateParams & TromeroCompletionParams & TromeroArgs,
     options?: Core.RequestOptions
   ): Promise<
     | ChatCompletion
@@ -328,9 +333,10 @@ class MockCompletions extends openai.OpenAI.Chat.Completions {
     | MockChatCompletion
     | AsyncIterableIterator<ChatCompletionChunkStreamClass>
     | undefined
+    | Error
   > {
-    const modelType = await getModelTypeOrFetch(body.model, this._client);
-    const [newKwargs, settings] = await this.formatParams(body, modelType);
+    const isOpenAIModel = await this.isModelFromOpenAI(body.model);
+    const [newKwargs, settings] = await this.formatParams(body, isOpenAIModel);
     newKwargs.messages = this.formatMessages(
       newKwargs.messages as Array<ChatCompletionMessageParam>
     );
@@ -339,7 +345,7 @@ class MockCompletions extends openai.OpenAI.Chat.Completions {
     let { tags, saveData, useFallback, fallbackModel } = settings;
 
     try {
-      if (modelType === 'OpenAI') {
+      if (isOpenAIModel) {
         return await this.handleOpenAIModel({
           body: newKwargs as ChatCompletionCreateParamsBase,
           options,
@@ -347,10 +353,9 @@ class MockCompletions extends openai.OpenAI.Chat.Completions {
           saveData,
           modelNameForLogs,
         });
-      } else if (modelType === 'Tromero' && this.tromeroClient) {
+      } else if (!isOpenAIModel && this.tromeroClient) {
         return await this.handleTromeroModel({
-          body: newKwargs as TromeroParams,
-          options,
+          body: newKwargs as TromeroCompletionParams,
           tags,
           saveData,
           modelNameForLogs,
@@ -373,7 +378,8 @@ class MockCompletions extends openai.OpenAI.Chat.Completions {
           options
         );
       } else {
-        throw error;
+        console.warn('Error creating completion:', error);
+        return Promise.reject(error);
       }
     }
   }
@@ -401,8 +407,8 @@ class MockCompletions extends openai.OpenAI.Chat.Completions {
       try {
         res = await this._create(body, options);
       } catch (error) {
-        console.warn('Error creating openAI Mock stream', error);
-        throw error;
+        console.warn('Error creating openAI stream', error);
+        return Promise.reject(error);
       }
       return new MockStream(res, async (response) => {
         if (!saveData) return '';
@@ -424,7 +430,7 @@ class MockCompletions extends openai.OpenAI.Chat.Completions {
         res = await this._create(body, options);
       } catch (error) {
         console.warn('Error creating openAI completion', error);
-        throw error;
+        return Promise.reject(error);
       }
       if (res.choices) {
         for (const choice of res.choices) {
@@ -449,13 +455,11 @@ class MockCompletions extends openai.OpenAI.Chat.Completions {
 
   private async handleTromeroModel({
     body,
-    options,
     tags,
     saveData,
     modelNameForLogs,
   }: {
-    body: TromeroParams;
-    options?: Core.RequestOptions;
+    body: TromeroCompletionParams;
     tags?: string | string[] | number[] | undefined;
     saveData?: boolean | undefined;
     modelNameForLogs: string;
@@ -463,233 +467,103 @@ class MockCompletions extends openai.OpenAI.Chat.Completions {
     | MockChatCompletion
     | AsyncIterableIterator<ChatCompletionChunkStreamClass>
     | undefined
-    | any
+    | Error
   > {
     let res:
       | MockChatCompletion
       | AsyncIterableIterator<ChatCompletionChunkStreamClass>
-      | undefined;
+      | undefined
+      | Error;
 
     const { messages, model, stream, ...tromeroParams } = body;
 
-    if (!(model in this.tromeroClient!.modelUrls)) {
-      const { url, baseModel } = await this.tromeroClient!.getModelUrl(model);
-      this.tromeroClient!.modelUrls[model] = url;
-      this.tromeroClient!.baseModel[model] = baseModel;
+    try {
+      let modelData: ModelDataDetails | undefined =
+        this.tromeroClient!.modelData[model];
+
+      if (!modelData) {
+        const { url, baseModel, error } = await this.tromeroClient!.getModelUrl(
+          model
+        );
+        if (error) {
+          throw new Error(error);
+        }
+        modelData = {
+          url,
+          adapter_name: baseModel ? 'NO_ADAPTER' : model,
+        };
+        this.tromeroClient!.modelData[model] = modelData;
+      }
+
+      if (stream && modelData) {
+        try {
+          res = this.tromeroClient!.createStream(
+            modelData!.adapter_name,
+            modelData!.url,
+            messages,
+            saveData
+              ? {
+                  saveData,
+                  model: modelNameForLogs,
+                  kwargs: tromeroParams,
+                  tags: Array.isArray(tags)
+                    ? tags.join(', ')
+                    : typeof tags === 'string'
+                    ? tags
+                    : '',
+                }
+              : tromeroParams
+          );
+
+          if (!res || !res[Symbol.asyncIterator]) {
+            throw new Error('Stream not created');
+          }
+
+          try {
+            await res.next();
+          } catch (error) {
+            throw error;
+          }
+        } catch (error) {
+          throw error;
+        }
+      } else if (modelData) {
+        try {
+          const response = await this.tromeroClient!.create(
+            modelData!.adapter_name,
+            modelData!.url,
+            messages,
+            tromeroParams
+          );
+          if (response.generated_text && response.usage) {
+            res = mockOpenAIFormat(
+              response.generated_text,
+              model,
+              response.usage
+            ) as MockChatCompletion;
+            if (saveData) {
+              for (const choice of res.choices) {
+                await this.saveDataOnServer(saveData, {
+                  messages: messages.concat([choice.message]),
+                  model: modelNameForLogs,
+                  kwargs: tromeroParams,
+                  creation_time: new Date().toISOString(),
+                  tags: Array.isArray(tags)
+                    ? tags.join(', ')
+                    : typeof tags === 'string'
+                    ? tags
+                    : '',
+                });
+              }
+            }
+          }
+        } catch (error) {
+          throw error;
+        }
+        return res;
+      }
+    } catch (error) {
+      return Promise.reject(error);
     }
-
-    //   const { formattedParams } = await this.formatParams(kwargs, isOpenAiModel);
-
-    //     model,
-    //     useFallback = true,
-    //     fallbackModel = '',
-    //     ...kwargs
-    //   } = body as any;
-    //   const messages = this.formatMessages(kwargs.messages);
-
-    //   let isOpenAiModel = await this.isModelFromOpenAi(model);
-
-    //   const { formattedParams } = await this.formatParams(kwargs, isOpenAiModel);
-
-    //   let res:
-    //     | ChatCompletion
-    //     | Stream<ChatCompletionChunk>
-    //     | MockStream
-    //     | MockChatCompletion
-    //     | AsyncIterableIterator<ChatCompletionChunkStreamClass>
-    //     | undefined;
-
-    //   let modelNameForLogs = model;
-
-    //   if (isOpenAiModel) {
-    //     try {
-    //       if (body.stream) {
-    //         res = await this._create(body, options);
-    //         try {
-    //           return new MockStream(res, (response): Promise<string> => {
-    //             if (!saveData) return Promise.resolve('');
-    //             const dataToSend = {
-    //               messages: [...messages, response?.choices[0].message],
-    //               model: modelNameForLogs,
-    //               kwargs: formattedParams,
-    //               creation_time: new Date().toISOString(),
-    //               tags: Array.isArray(tags)
-    //                 ? tags.join(', ')
-    //                 : typeof tags === 'string'
-    //                 ? tags
-    //                 : '',
-    //             };
-    //             return this.saveDataOnServer(saveData, dataToSend);
-    //           });
-    //         } catch (e) {
-    //           console.error('Tromero: error creating Mock stream', e);
-    //           throw e;
-    //         }
-    //       } else {
-    //         res = await this._create(body, options);
-    //         if (res.choices) {
-    //           for (const choice of res.choices) {
-    //             const formattedChoice = this.choiceToObject(choice);
-    //             if (saveData) {
-    //               this.saveDataOnServer(saveData, {
-    //                 messages: messages.concat([formattedChoice.message]),
-    //                 model: modelNameForLogs,
-    //                 kwargs: formattedParams,
-    //                 creation_time: new Date().toISOString(),
-    //                 tags: Array.isArray(tags)
-    //                   ? tags.join(', ')
-    //                   : typeof tags === 'string'
-    //                   ? tags
-    //                   : '',
-    //               });
-    //             }
-    //           }
-    //         }
-    //         return res;
-    //       }
-    //     } catch (error: unknown) {
-    //       if (error instanceof openai.APIError) {
-    //         const rawMessage = error.message as string | string[];
-    //         const message = Array.isArray(rawMessage)
-    //           ? rawMessage.join(', ')
-    //           : rawMessage;
-    //         console.warn('Error in create: ', message);
-    //         throw error;
-    //       } else {
-    //         console.warn('unexpected error in create', error);
-    //         throw error;
-    //       }
-    //     }
-    //   } else if (this.tromeroClient) {
-    //     if (!(model in this.tromeroClient.modelUrls)) {
-    //       const { url, baseModel } = await this.tromeroClient.getModelUrl(model);
-    //       this.tromeroClient.modelUrls[model] = url;
-    //       this.tromeroClient.baseModel[model] = baseModel;
-    //     }
-
-    //     const modelRequestName = this.tromeroClient.baseModel[model]
-    //       ? 'NO_ADAPTER'
-    //       : model;
-
-    //     if (body.stream) {
-    //       try {
-    //         const callback = this.saveDataOnServer.bind(this);
-    //         const resp = this.tromeroClient.createStream(
-    //           modelRequestName,
-    //           this.tromeroClient.modelUrls[model],
-    //           messages,
-    //           saveData
-    //             ? {
-    //                 ...formattedParams,
-    //                 saveData,
-    //                 model: modelNameForLogs,
-    //                 kwargs: formattedParams,
-    //                 tags: Array.isArray(tags)
-    //                   ? tags.join(', ')
-    //                   : typeof tags === 'string'
-    //                   ? tags
-    //                   : '',
-    //               }
-    //             : formattedParams,
-    //           callback
-    //         );
-
-    //         if (!resp || !resp[Symbol.asyncIterator]) {
-    //           throw new Error('Stream not created using fallback if exists');
-    //         }
-    //         try {
-    //           await resp.next();
-    //         } catch (err) {
-    //           throw err;
-    //         }
-    //         return resp;
-    //       } catch (e) {
-    //         if (useFallback && fallbackModel) {
-    //           modelNameForLogs = fallbackModel;
-    //           const modifiedBody = {
-    //             ...body,
-    //             model: fallbackModel,
-    //           };
-    //           delete modifiedBody.fallbackModel;
-    //           res = await this._create(
-    //             modifiedBody as ChatCompletionCreateParamsStreaming,
-    //             options
-    //           );
-    //           return new MockStream(res, (response): Promise<string> => {
-    //             if (!saveData) return Promise.resolve('');
-    //             const dataToSend = {
-    //               messages: [...messages, response?.choices[0].message],
-    //               model: modelNameForLogs,
-    //               kwargs: formattedParams,
-    //               creation_time: new Date().toISOString(),
-    //               tags: Array.isArray(tags)
-    //                 ? tags.join(', ')
-    //                 : typeof tags === 'string'
-    //                 ? tags
-    //                 : '',
-    //             };
-    //             return this.saveDataOnServer(saveData, dataToSend);
-    //           });
-    //         } else {
-    //           return Promise.reject(
-    //             'Error creating stream, you may need to use a fallback model'
-    //           );
-    //         }
-    //       }
-    //     } else {
-    //       try {
-    //         const response = await this.tromeroClient.create(
-    //           modelRequestName,
-    //           this.tromeroClient.modelUrls[model],
-    //           messages,
-    //           formattedParams
-    //         );
-    //         if (response.generated_text && response.usage) {
-    //           res = mockOpenAIFormat(
-    //             response.generated_text,
-    //             modelRequestName,
-    //             response.usage
-    //           );
-    //         }
-    //       } catch (error) {
-    //         if (useFallback && fallbackModel) {
-    //           modelNameForLogs = fallbackModel;
-    //           const modifiedBody = {
-    //             ...body,
-    //             model: fallbackModel,
-    //           };
-    //           delete modifiedBody.fallbackModel;
-    //           res = await this._create(
-    //             modifiedBody as ChatCompletionCreateParamsNonStreaming,
-    //             options
-    //           );
-    //         }
-    //       }
-    //       if (res && 'choices' in res) {
-    //         for (const choice of res.choices) {
-    //           const formattedChoice = this.choiceToObject(choice);
-    //           if (saveData) {
-    //             const dataToSend = {
-    //               messages: messages.concat([formattedChoice.message]),
-    //               model: modelNameForLogs,
-    //               kwargs: formattedParams,
-    //               creation_time: new Date().toISOString(),
-    //               tags: Array.isArray(tags)
-    //                 ? tags.join(', ')
-    //                 : typeof tags === 'string'
-    //                 ? tags
-    //                 : '',
-    //             };
-    //             this.saveDataOnServer(saveData, dataToSend);
-    //           }
-    //         }
-    //       }
-    //       return res;
-    //     }
-    //   } else {
-    //     return Promise.reject(
-    //       'Error: Tromero client not set. Please set the client before calling create.'
-    //     );
-    //   }
   }
 }

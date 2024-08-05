@@ -1,5 +1,3 @@
-import type { ChatCompletionCreateParams } from 'openai/resources/chat/completions';
-
 export interface TromeroAIOptions {
   apiKey: string;
   baseURL?: string;
@@ -85,12 +83,6 @@ export function mockOpenAIFormat(
   return response;
 }
 
-export type TromeroCompletionArgs = TromeroParams & TromeroArgs;
-
-export type InferenceParams<T extends 'OpenAI' | 'Tromero'> = T extends 'OpenAI'
-  ? ChatCompletionCreateParams
-  : TromeroParams;
-
 export type TromeroArgs = {
   tags?: string[] | number[] | string;
   useFallback?: boolean;
@@ -98,20 +90,7 @@ export type TromeroArgs = {
   saveData?: boolean;
 };
 
-export type FormattedParams = Omit<
-  TromeroCompletionArgs,
-  | 'formattedMessages'
-  | 'formattedParams'
-  | 'saveData'
-  | 'tags'
-  | 'fallbackModel'
-  | 'modelNameForLogs'
-  | 'useFallback'
-  | 'model'
-  | 'messages'
->;
-
-export interface TromeroParams {
+export interface TromeroCompletionParams {
   model: string;
   messages: Message[];
   stream?: boolean;
@@ -142,13 +121,6 @@ export interface TromeroParams {
   logits_processors?: Array<Function>;
   truncate_prompt_tokens?: number;
 }
-
-export type TromeroCompletionResponse = {
-  generated_text: string;
-  model: string;
-  creation_time: string;
-  tags: string;
-};
 
 interface ChatCompletionChunkStreamParams {
   id?: string;
@@ -207,3 +179,12 @@ export class ChatCompletionChunkStreamClass {
     return this.choices;
   }
 }
+
+export type ModelDataDetails = {
+  url: string;
+  adapter_name: string;
+};
+
+export type ModelData = {
+  [key: string]: ModelDataDetails;
+};

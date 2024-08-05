@@ -1,12 +1,8 @@
 import {
-  TromeroAIOptions,
-  ApiResponse,
   Message,
   Choice,
   MockChatCompletion,
   mockOpenAIFormat,
-  TromeroCompletionArgs,
-  TromeroCompletionResponse,
   ChatCompletionChunkStreamClass,
 } from '../src/tromeroUtils';
 
