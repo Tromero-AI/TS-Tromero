@@ -47,7 +47,8 @@ describe('Tromero', () => {
   });
 
   test('should call the create method and return a response', async () => {
-    const body: ChatCompletionCreateParams = {
+    const body: ChatCompletionCreateParams &
+      tromeroUtils.TromeroCompletionArgs = {
       model: 'test-model',
       messages: [{ role: 'user', content: 'Hello' }],
     };
@@ -74,7 +75,8 @@ describe('Tromero', () => {
   });
 
   test('should handle stream response', async () => {
-    const body: ChatCompletionCreateParams = {
+    const body: ChatCompletionCreateParams &
+      tromeroUtils.TromeroCompletionArgs = {
       model: 'test-model',
       messages: [{ role: 'user', content: 'Hello' }],
       stream: true,

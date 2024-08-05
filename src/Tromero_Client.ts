@@ -1,6 +1,7 @@
 import {
   ApiResponse,
   ChatCompletionChunkStreamClass,
+  Message,
   TromeroAIOptions,
 } from './tromeroUtils';
 
@@ -101,7 +102,7 @@ export default class TromeroClient {
   async create(
     model: string,
     modelUrl: string,
-    messages: any[],
+    messages: Message[],
     parameters: any = {}
   ) {
     const response = await this.fetchData(`${modelUrl}/generate`, {
@@ -128,7 +129,7 @@ export default class TromeroClient {
   async *createStream(
     model: string,
     modelUrl: string,
-    messages: any[],
+    messages: Message[],
     parameters: {
       [key: string]: any;
     } = {},

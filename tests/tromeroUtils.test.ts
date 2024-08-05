@@ -3,7 +3,7 @@ import {
   ApiResponse,
   Message,
   Choice,
-  Response,
+  MockChatCompletion,
   mockOpenAIFormat,
   TromeroCompletionArgs,
   TromeroCompletionResponse,
@@ -27,7 +27,7 @@ describe('Tromero Utils', () => {
 
   describe('Choice class', () => {
     test('should create a Choice instance', () => {
-      const choice = new Choice('Choice message', 1);
+      const choice = new Choice(new Message('Choice message'), 1);
       expect(choice.message.content).toBe('Choice message');
       expect(choice.finish_reason).toBe('stop');
       expect(choice.index).toBe(1);
@@ -37,8 +37,10 @@ describe('Tromero Utils', () => {
 
   describe('Response class', () => {
     test('should create a Response instance', () => {
-      const choice = new Choice('Response message');
-      const response = new Response([choice], 'test-model', { usage: 'test' });
+      const choice = new Choice(new Message('Response message'));
+      const response = new MockChatCompletion([choice], 'test-model', {
+        usage: 'test',
+      });
       expect(response.choices).toHaveLength(1);
       expect(response.model).toBe('test-model');
       expect(response.object).toBe('chat.completion');
@@ -48,7 +50,7 @@ describe('Tromero Utils', () => {
 
   describe('mockOpenAIFormat function', () => {
     test('should return a formatted Response', () => {
-      const messages = 'Mock message';
+      const messages = [new Message('Mock message')];
       const model = 'mock-model';
       const usage = { key: 'value' };
       const response = mockOpenAIFormat(messages, model, usage);

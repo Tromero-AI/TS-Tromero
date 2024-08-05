@@ -14,11 +14,17 @@ export interface ApiResponse {
 
 export class Message {
   content: string | null;
-  role: 'assistant' | 'user' | 'system' | 'tool' | undefined;
+  role?: 'assistant' | 'user' | 'system' | 'tool' | undefined;
+  tool_call_id?: string;
 
   constructor(
-    content: string,
-    role: 'assistant' | 'user' | 'system' | 'tool' | undefined = 'assistant'
+    content: string | null,
+    role:
+      | 'assistant'
+      | 'user'
+      | 'system'
+      | 'tool'
+      | undefined = 'assistant' as const
   ) {
     this.content = content;
     this.role = role;
@@ -27,19 +33,28 @@ export class Message {
 
 export class Choice {
   message: Message;
-  finish_reason: string | null;
+  finish_reason:
+    | 'stop'
+    | 'length'
+    | 'tool_calls'
+    | 'content_filter'
+    | 'function_call';
   index: number;
   logprobs: any;
 
-  constructor(message: string, index: number = 0) {
-    this.message = new Message(message);
-    this.finish_reason = 'stop';
+  constructor(message: string | Message, index: number = 0) {
+    if (typeof message === 'string') {
+      this.message = new Message(message);
+    } else {
+      this.message = new Message(message.content, message.role);
+    }
+    this.finish_reason = 'stop' as const;
     this.index = index;
     this.logprobs = null;
   }
 }
 
-export class Response {
+export class MockChatCompletion {
   choices: Choice[];
   id: string;
   model: string;
@@ -58,12 +73,15 @@ export class Response {
 }
 
 export function mockOpenAIFormat(
-  messages: string,
+  messages: Message[],
   model: string,
   usage: { [key: string]: string }
-): Response {
-  const choice = new Choice(messages);
-  const response = new Response([choice], model, usage);
+): MockChatCompletion {
+  const choices = Array.from(
+    { length: messages.length },
+    (_, i) => new Choice(messages[i], i)
+  );
+  const response = new MockChatCompletion(choices, model, usage);
   return response;
 }
 
@@ -74,7 +92,7 @@ export type InferenceParams<T extends 'OpenAI' | 'Tromero'> = T extends 'OpenAI'
   : TromeroParams;
 
 export type TromeroArgs = {
-  tags?: string[] | number[];
+  tags?: string[] | number[] | string;
   useFallback?: boolean;
   fallbackModel?: string;
   saveData?: boolean;
@@ -96,6 +114,7 @@ export type FormattedParams = Omit<
 export interface TromeroParams {
   model: string;
   messages: Message[];
+  stream?: boolean;
   n?: number;
   best_of?: number;
   presence_penalty?: number;
