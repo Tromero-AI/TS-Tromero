@@ -22,28 +22,19 @@ import {
 import { MockStream } from './openai/streaming';
 import TromeroClient from './Tromero_Client';
 
-interface TromeroOptions extends openai.ClientOptions {
+interface ClientOptions extends openai.ClientOptions {
   apiKey?: string;
   tromeroKey?: string;
 }
 
-/**
- * The Tromero client.
- * @extends OpenAI
- * @param tromeroKey - The API key for the Tromero API.
- * @param apiKey - The API key for the OpenAI API.
- * @param saveData - Whether to save the data to the server.
- * @param opts - The options to pass to the OpenAI client.
- * @returns The Tromero client.
- */
 export default class Tromero extends openai.OpenAI {
   public tromeroClient?: TromeroClient;
 
-  constructor({ tromeroKey, apiKey, ...opts }: TromeroOptions) {
+  constructor({ tromeroKey, apiKey, ...opts }: ClientOptions) {
     super({ apiKey, ...opts });
 
     if (tromeroKey) {
-      const tromeroClient = new TromeroClient({ apiKey: tromeroKey });
+      const tromeroClient = new TromeroClient({ tromeroKey });
       this.chat.setClient(tromeroClient);
     } else {
       if (apiKey) {
@@ -61,11 +52,6 @@ export default class Tromero extends openai.OpenAI {
   chat: MockChat = new MockChat(this);
 }
 
-/**
- * A mock chat class that uses the Tromero client.
- * @param client - The OpenAI client.
- * @returns The mock chat class.
- */
 class MockChat extends openai.OpenAI.Chat {
   completions: MockCompletions;
 
@@ -79,11 +65,6 @@ class MockChat extends openai.OpenAI.Chat {
   }
 }
 
-/**
- * A mock completions class that uses the Tromero client.
- * @param client - The OpenAI client.
- * @returns The mock completions class.
- */
 class MockCompletions extends openai.OpenAI.Chat.Completions {
   tromeroClient?: TromeroClient;
 
@@ -121,12 +102,6 @@ class MockCompletions extends openai.OpenAI.Chat.Completions {
     return '';
   }
 
-  /**
-   * Formats the parameters for the model. by keeping only the valid parameters for the model (if it's an OpenAI model it will keep only the OpenAI parameters and if it's a Tromero model it will keep only the Tromero parameters).
-   * @param kwargs - The parameters to format.
-   * @param isOpenAiModel - Whether the model is an OpenAI model.
-   * @returns - a tuple with the formatted parameters and the settings.
-   */
   private async formatParams(
     kwargs: { [key: string]: any },
     isOpenAIModel: boolean
