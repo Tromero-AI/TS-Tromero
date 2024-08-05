@@ -84,9 +84,25 @@ export function mockOpenAIFormat(
 }
 
 export type TromeroArgs = {
+  /**
+   * Add tags in the form of an array of strings or numbers, if you choose to save the logs your messages will be tagged with these for future reference.
+   * @example ['tag1', 'tag2']
+   */
   tags?: string[] | number[] | string;
+
+  /**
+   * If set to true, and there is an error in the completion, system will try to use the fallback model to generate a response.  If this is set to true, the fallbackModel parameter must be set.
+   */
   useFallback?: boolean;
+
+  /**
+   * The name of the model to use as a fallback if the completion fails.  This parameter is required if useFallback is set to true. You can choose either an OpenAI model or a Model you deployed on Tromero.
+   */
   fallbackModel?: string;
+
+  /**
+   * If set to true, the completion logs will be saved to the database.
+   */
   saveData?: boolean;
 };
 
@@ -104,7 +120,7 @@ export interface TromeroCompletionParams {
   /**
    * If set, partial message deltas will be sent as they become available.
    */
-  stream?: boolean;
+  stream?: boolean | null;
 
   /**
    * Number of output sequences to return for the given prompt.

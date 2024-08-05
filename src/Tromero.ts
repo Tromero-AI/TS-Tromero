@@ -185,23 +185,28 @@ class MockCompletions extends openai.OpenAI.Chat.Completions {
         if (validOpenAiKeys.has(key)) {
           (openAiParams as any)[key] = kwargs[key];
         } else {
-          console.warn(
-            `Warning: ${key} is not a valid parameter for OpenAI models. This parameter will be ignored.`
-          );
-          invalidKeyFound = true;
+          if (!validExtraKeys.has(key)) {
+            console.warn(
+              `Warning: ${key} is not a valid parameter for OpenAI models. This parameter will be ignored.`
+            );
+            invalidKeyFound = true;
+          } else {
+            (settings as any)[key] = kwargs[key];
+          }
         }
       } else {
         if (validTromeroKeys.has(key)) {
           (tromeroParams as any)[key] = kwargs[key];
         } else {
-          console.warn(
-            `Warning: ${key} is not a valid parameter for models fine-tuned in Tromero. This parameter will be ignored.`
-          );
-          invalidKeyFound = true;
+          if (!validExtraKeys.has(key)) {
+            console.warn(
+              `Warning: ${key} is not a valid parameter for models fine-tuned in Tromero. This parameter will be ignored.`
+            );
+            invalidKeyFound = true;
+          } else {
+            (settings as any)[key] = kwargs[key];
+          }
         }
-      }
-      if (validExtraKeys.has(key)) {
-        (settings as any)[key] = kwargs[key];
       }
     }
 
@@ -329,6 +334,7 @@ class MockCompletions extends openai.OpenAI.Chat.Completions {
           modelNameForLogs,
         });
       } else if (!isOpenAIModel && this.tromeroClient) {
+        console.log('Tromero model');
         return await this.handleTromeroModel({
           body: newKwargs as TromeroCompletionParams,
           tags,
@@ -472,7 +478,7 @@ class MockCompletions extends openai.OpenAI.Chat.Completions {
 
       if (stream && modelData) {
         try {
-          res = this.tromeroClient!.createStream(
+          const response = this.tromeroClient!.createStream(
             modelData!.adapter_name,
             modelData!.url,
             messages,
@@ -490,15 +496,16 @@ class MockCompletions extends openai.OpenAI.Chat.Completions {
               : tromeroParams
           );
 
-          if (!res || !res[Symbol.asyncIterator]) {
+          if (!response || !response[Symbol.asyncIterator]) {
             throw new Error('Stream not created');
           }
 
           try {
-            await res.next();
+            await response.next();
           } catch (error) {
             throw error;
           }
+          return response;
         } catch (error) {
           throw error;
         }
