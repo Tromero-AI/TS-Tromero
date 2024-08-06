@@ -1,27 +1,17 @@
 import {
-  TromeroAIOptions,
-  ApiResponse,
-  Message,
+  MockMessage,
   Choice,
-  Response,
+  MockChatCompletion,
   mockOpenAIFormat,
-  TromeroCompletionArgs,
-  TromeroCompletionResponse,
   ChatCompletionChunkStreamClass,
 } from '../src/tromeroUtils';
 
 describe('Tromero Utils', () => {
-  describe('Message class', () => {
-    test('should create a Message instance with default role', () => {
-      const message = new Message('Hello, World!');
+  describe('MockMessage class', () => {
+    test('should create a MockMessage instance with default role', () => {
+      const message = new MockMessage('Hello, World!');
       expect(message.content).toBe('Hello, World!');
       expect(message.role).toBe('assistant');
-    });
-
-    test('should create a Message instance with specified role', () => {
-      const message = new Message('Hello, User!', 'user');
-      expect(message.content).toBe('Hello, User!');
-      expect(message.role).toBe('user');
     });
   });
 
@@ -35,10 +25,12 @@ describe('Tromero Utils', () => {
     });
   });
 
-  describe('Response class', () => {
-    test('should create a Response instance', () => {
+  describe('MockChatCompletion class', () => {
+    test('should create a MockChatCompletion instance', () => {
       const choice = new Choice('Response message');
-      const response = new Response([choice], 'test-model', { usage: 'test' });
+      const response = new MockChatCompletion([choice], 'test-model', {
+        usage: 'test',
+      });
       expect(response.choices).toHaveLength(1);
       expect(response.model).toBe('test-model');
       expect(response.object).toBe('chat.completion');
@@ -47,11 +39,11 @@ describe('Tromero Utils', () => {
   });
 
   describe('mockOpenAIFormat function', () => {
-    test('should return a formatted Response', () => {
-      const messages = 'Mock message';
+    test('should return a formatted MockChatCompletion', () => {
+      const message = 'Mock message';
       const model = 'mock-model';
       const usage = { key: 'value' };
-      const response = mockOpenAIFormat(messages, model, usage);
+      const response = mockOpenAIFormat(message, model, usage);
       expect(response.choices[0].message.content).toBe('Mock message');
       expect(response.model).toBe('mock-model');
       expect(response.usage).toEqual(usage);
@@ -66,7 +58,6 @@ describe('Tromero Utils', () => {
       };
       const chunkStream = new ChatCompletionChunkStreamClass(params);
       expect(chunkStream.model).toBe('test-model');
-      expect(chunkStream.streamResponse).toBe('Stream response');
       expect(chunkStream.choices[0].delta.content).toBe('Stream response');
     });
 

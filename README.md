@@ -32,7 +32,7 @@ import Tromero from 'tromero';
 Initialize the `Tromero` client using your API keys, which should be stored securely and preferably as environment variables:
 
 ```javascript
-const client = new TailorAI({
+const client = new Tromero({
   apiKey: process.env.OPENAI_KEY, // optional if you are using OpenAI models
   tromeroKey: process.env.TROMERO_KEY, // optional if you are using Tromero models
 });
@@ -44,24 +44,24 @@ This class is a drop-in replacement for OpenAI, you should be able to use it as 
 
 ```javascript
 const completion = await client.chat.completions.create({
-    model: 'gpt-4o-mini',
-    messages: [
-      { role: 'system', content: 'You are a friendly chatbot.' },
-      { role: 'user', content: `${user prompt}` },
-    ],
-  });
+  model: 'gpt-4o-mini', // an OpenAI model
+  messages: [
+    { role: 'system', content: 'You are a friendly chatbot.' },
+    { role: 'user', content: `${userPrompt}` },
+  ],
+});
 ```
 
 And for your trained model:
 
 ```javascript
 const completion = await client.chat.completions.create({
-    model: 'chatbot-202408',
-    messages: [
-      { role: 'system', content: 'You are a friendly chatbot.' },
-      { role: 'user', content: `${user prompt}` },
-    ],
-  });
+  model: 'chatbot-202408', // your model hosted on Tromero
+  messages: [
+    { role: 'system', content: 'You are a friendly chatbot.' },
+    { role: 'user', content: `${userPrompt}` },
+  ],
+});
 ```
 
 #### JSON Formatting
@@ -106,7 +106,7 @@ const completion = await client.chat.completions.create({
   stream: true,
 });
 
-/* if you are using express, you can stream the response to the client */
+/* if you are using express server, you can stream the response to the client */
 res.setHeader('Content-Type', 'text/event-stream');
 res.setHeader('Cache-Control', 'no-cache');
 res.setHeader('Connection', 'keep-alive');
@@ -125,11 +125,11 @@ for await (const chunk of completion) {
 
 #### Fallback Models
 
-Tromero supports the specification of fallback models to ensure robustness and continuity of service, even when your primary model might encounter issues. You can configure a fallback model, which can be any OpenAI model, to be used in case the primary model fails.
+Tromero supports the specification of fallback models to ensure robustness and continuity of service, even when your primary model might encounter issues. You can configure a fallback model to be used in case the primary model fails.
 
 ##### Configuring a Fallback Model
 
-To set up a fallback model, you simply specify the `fallbackModel` parameter in your API calls. This parameter allows you to define an alternative model that the system should switch to in the event that the primary model fails to generate a response. The fallback model can be any other model that you have access to, whether self-hosted, hosted by Tromero, or available through OpenAI.
+To set up a fallback model, you simply specify the `fallbackModel` parameter in your API calls. This parameter allows you to define an alternative model that the system should switch to in the event that the primary model fails to generate a response. The fallback model can be any other model that you have access to, whether self-hosted (linked to Tromero), hosted by Tromero, or available through OpenAI.
 
 Here’s an example of how to specify a fallback model in your API calls:
 
@@ -172,7 +172,6 @@ const completion = await client.chat.completions.create({
   ],
   tags: ['version-1', 'feedback'],
   saveData: true,
-  stream: true,
 });
 ```
 

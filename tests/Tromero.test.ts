@@ -1,14 +1,11 @@
-import * as openai from 'openai';
 import Tromero from '../src/Tromero';
 import TromeroClient from '../src/Tromero_Client';
 import { MockStream } from '../src/openai/streaming';
 import * as tromeroUtils from '../src/tromeroUtils';
 import type {
-  ChatCompletion,
   ChatCompletionChunk,
   ChatCompletionCreateParams,
 } from 'openai/resources/chat/completions';
-import * as mergeChunksModule from '../src/openai/mergeChunks';
 import { Stream } from 'openai/streaming';
 
 jest.mock('openai');
@@ -24,7 +21,7 @@ describe('Tromero', () => {
   beforeEach(() => {
     (TromeroClient as jest.MockedClass<typeof TromeroClient>).mockClear();
     tromeroClient = new TromeroClient({
-      apiKey: 'tromero-key',
+      tromeroKey: 'tromero-key',
     }) as jest.Mocked<TromeroClient>;
     (
       TromeroClient as jest.MockedClass<typeof TromeroClient>
@@ -35,7 +32,6 @@ describe('Tromero', () => {
 
   test('should create a new TromeroClient instance if tromeroKey is provided', () => {
     expect(tromeroClient).toBeInstanceOf(TromeroClient);
-    expect(tromero.chat.completions.tromeroClient).toBe(tromeroClient);
   });
 
   test('should warn if no keys are provided', () => {
@@ -47,7 +43,8 @@ describe('Tromero', () => {
   });
 
   test('should call the create method and return a response', async () => {
-    const body: ChatCompletionCreateParams = {
+    const body: ChatCompletionCreateParams &
+      tromeroUtils.TromeroCompletionParams = {
       model: 'test-model',
       messages: [{ role: 'user', content: 'Hello' }],
     };
@@ -74,7 +71,8 @@ describe('Tromero', () => {
   });
 
   test('should handle stream response', async () => {
-    const body: ChatCompletionCreateParams = {
+    const body: ChatCompletionCreateParams &
+      tromeroUtils.TromeroCompletionParams = {
       model: 'test-model',
       messages: [{ role: 'user', content: 'Hello' }],
       stream: true,
@@ -103,17 +101,14 @@ describe('Tromero', () => {
   });
 
   // test('should handle fallback model if provided', async () => {
-  //   const body: ChatCompletionCreateParams = {
+  //   const body = {
   //     model: 'invalid-model',
   //     messages: [{ role: 'user', content: 'Hello' }],
   //   };
 
   //   const createMock = jest
   //     .fn()
-  //     .mockRejectedValueOnce(
-  //       // mock api error
-  //       new openai.OpenAIError('Invalid model')
-  //     )
+  //     .mockRejectedValueOnce(new Error('Invalid model'))
   //     .mockResolvedValueOnce({
   //       choices: [
   //         { message: { role: 'assistant', content: 'Fallback response' } },

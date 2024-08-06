@@ -1,44 +1,32 @@
 import {
   ApiResponse,
   ChatCompletionChunkStreamClass,
-  TromeroAIOptions,
+  CreateApiResponse,
+  Message,
+  MessageParams,
+  MockMessage,
+  ModelData,
+  TromeroCompletionParams,
+  TromeroOptions,
 } from './tromeroUtils';
 
-/**
- * TromeroClient is a class that allows you to interact with the Tromero API.
- * It provides methods to create completions and streams of completions.
- * @param apiKey: The API key to authenticate with the Tromero API.
- * @param baseURL: The base URL of the Tromero API.
- * @param dataURL: The URL to send data to the Tromero API.
- * @param modelUrls: A dictionary of model names to their respective URLs (so you don't have to fetch them each time).
- * @param baseModel: A dictionary of model names to their respective base models (so you don't have to fetch them each time).
- * @returns A new TromeroClient instance.
- */
 export default class TromeroClient {
   private dataURL: string;
   private baseURL: string;
   private apiKey: string;
-  modelUrls: { [key: string]: string };
-  baseModel: { [key: string]: any };
+  modelData: ModelData;
 
   constructor({
-    apiKey,
+    tromeroKey,
     baseURL = 'https://midyear-grid-402910.lm.r.appspot.com/tailor/v1',
     dataURL = `${baseURL}/data`,
-  }: TromeroAIOptions) {
-    this.apiKey = apiKey;
+  }: TromeroOptions) {
+    this.apiKey = tromeroKey;
     this.dataURL = dataURL;
     this.baseURL = baseURL;
-    this.modelUrls = {};
-    this.baseModel = {};
+    this.modelData = {};
   }
 
-  /**
-   * Fetches data from the given URL and returns it as a JSON object.
-   * @param url
-   * @param options
-   * @returns The response data as a JSON object.
-   */
   private async fetchData(
     url: string,
     options: RequestInit
@@ -51,6 +39,12 @@ export default class TromeroClient {
       }
       return data;
     } catch (error) {
+      if (error instanceof Response) {
+        return {
+          error: `An error occurred: ${error.statusText}`,
+          status_code: error.status,
+        };
+      }
       if (error instanceof Error) {
         return {
           error: `An error occurred: ${error.message}`,
@@ -64,12 +58,6 @@ export default class TromeroClient {
     }
   }
 
-  /**
-   * Endpoint to send data to the Tromero API.
-   * @param url
-   * @param options
-   * @returns The response data as a JSON object.
-   */
   async postData(data: any): Promise<ApiResponse> {
     return this.fetchData(this.dataURL, {
       method: 'POST',
@@ -81,13 +69,6 @@ export default class TromeroClient {
     });
   }
 
-  /**
-   * Endpoint to get the URL of a model.
-   * @param modelName
-   * @returns The response data as a JSON object.
-   * @throws An error if the request fails.
-   * @throws An error if the response is not JSON.
-   */
   async getModelUrl(modelName: string): Promise<ApiResponse> {
     return this.fetchData(`${this.baseURL}/model/${modelName}/url`, {
       method: 'GET',
@@ -101,8 +82,10 @@ export default class TromeroClient {
   async create(
     model: string,
     modelUrl: string,
-    messages: any[],
-    parameters: any = {}
+    messages: Message[],
+    parameters:
+      | Omit<TromeroCompletionParams, 'model' | 'messages' | 'stream'>
+      | {} = {}
   ) {
     const response = await this.fetchData(`${modelUrl}/generate`, {
       method: 'POST',
@@ -116,19 +99,10 @@ export default class TromeroClient {
     return response;
   }
 
-  /**
-   * Creates a stream of completions from the Tromero API.
-   * @param model - The model to use for the completions.
-   * @param modelUrl - The URL of the model.
-   * @param messages - The messages to send to the model.
-   * @param parameters - The parameters to send to the model.
-   * @param callback - A callback function to call after each completion.
-   * @returns An async iterable of completion chunks.
-   */
   async *createStream(
     model: string,
     modelUrl: string,
-    messages: any[],
+    messages: Message[],
     parameters: {
       [key: string]: any;
     } = {},
@@ -169,25 +143,47 @@ export default class TromeroClient {
 
           let chunkStr = new TextDecoder('utf-8').decode(value);
           try {
-            chunkStr = chunkStr.slice(5);
-            const chunkDict = JSON.parse(chunkStr);
+            const lines = chunkStr
+              .split('\n')
+              .filter((line) => line.trim().length > 0);
 
-            if (!chunkDict || !chunkDict.token) {
-              console.error('Invalid chunkDict or token structure', chunkDict);
-              continue;
-            }
+            for (let line of lines) {
+              if (line.startsWith('data:')) {
+                line = line.slice(5).trim();
 
-            const responseChunk = new ChatCompletionChunkStreamClass({
-              model: model,
-              streamResponse: chunkDict.token.text,
-              finishReason: chunkDict.token.special ? 'stop' : null,
-            });
+                try {
+                  const chunkDict = JSON.parse(line);
 
-            yield responseChunk;
+                  if (!chunkDict || !chunkDict.token) {
+                    console.error(
+                      'Invalid chunkDict or token structure',
+                      chunkDict
+                    );
+                    continue;
+                  }
 
-            const content = chunkDict.token.text;
-            if (content) {
-              fullText += content;
+                  const responseChunk = new ChatCompletionChunkStreamClass({
+                    model: model,
+                    streamResponse: chunkDict.token.text,
+                    finishReason: chunkDict.token.special ? 'stop' : null,
+                  });
+
+                  yield responseChunk;
+
+                  const content = chunkDict.token.text;
+                  if (content) {
+                    fullText += content;
+                  }
+                } catch (jsonError) {
+                  console.error(
+                    'JSON parsing error:',
+                    jsonError,
+                    'line:',
+                    line
+                  );
+                  continue;
+                }
+              }
             }
           } catch (error) {
             yield new ChatCompletionChunkStreamClass({
