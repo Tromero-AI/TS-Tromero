@@ -1,6 +1,6 @@
 {
   "name": "tromero",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "NPM package to conveniently integrate the Tromero service with your Node application. Fully typed.",
   "module": "./dist/index.mjs",
   "exports": {
