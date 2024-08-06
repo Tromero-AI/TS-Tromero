@@ -6,3 +6,17 @@
 
 # Build files
 /dist
+/build
+
+# environment file
+/.env
+
+# Ignore the node_modules directory
+/node_modules
+
+# DS_Store files
+.DS_Store
+
+# Ignore the .vscode directory
+.vscode
+
