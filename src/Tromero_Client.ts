@@ -1,7 +1,10 @@
 import {
   ApiResponse,
   ChatCompletionChunkStreamClass,
+  CreateApiResponse,
   Message,
+  MessageParams,
+  MockMessage,
   ModelData,
   TromeroCompletionParams,
   TromeroOptions,
@@ -140,25 +143,47 @@ export default class TromeroClient {
 
           let chunkStr = new TextDecoder('utf-8').decode(value);
           try {
-            chunkStr = chunkStr.slice(5);
-            const chunkDict = JSON.parse(chunkStr);
+            const lines = chunkStr
+              .split('\n')
+              .filter((line) => line.trim().length > 0);
 
-            if (!chunkDict || !chunkDict.token) {
-              console.error('Invalid chunkDict or token structure', chunkDict);
-              continue;
-            }
+            for (let line of lines) {
+              if (line.startsWith('data:')) {
+                line = line.slice(5).trim();
 
-            const responseChunk = new ChatCompletionChunkStreamClass({
-              model: model,
-              streamResponse: chunkDict.token.text,
-              finishReason: chunkDict.token.special ? 'stop' : null,
-            });
+                try {
+                  const chunkDict = JSON.parse(line);
 
-            yield responseChunk;
+                  if (!chunkDict || !chunkDict.token) {
+                    console.error(
+                      'Invalid chunkDict or token structure',
+                      chunkDict
+                    );
+                    continue;
+                  }
 
-            const content = chunkDict.token.text;
-            if (content) {
-              fullText += content;
+                  const responseChunk = new ChatCompletionChunkStreamClass({
+                    model: model,
+                    streamResponse: chunkDict.token.text,
+                    finishReason: chunkDict.token.special ? 'stop' : null,
+                  });
+
+                  yield responseChunk;
+
+                  const content = chunkDict.token.text;
+                  if (content) {
+                    fullText += content;
+                  }
+                } catch (jsonError) {
+                  console.error(
+                    'JSON parsing error:',
+                    jsonError,
+                    'line:',
+                    line
+                  );
+                  continue;
+                }
+              }
             }
           } catch (error) {
             yield new ChatCompletionChunkStreamClass({

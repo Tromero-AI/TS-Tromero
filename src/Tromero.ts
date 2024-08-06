@@ -17,7 +17,10 @@ import {
   MockChatCompletion,
   TromeroArgs,
   ModelDataDetails,
+  TromeroCompletionParamsBase,
   TromeroCompletionParams,
+  TromeroCompletionParamsNonStream,
+  TromeroCompletionParamsStream,
 } from './tromeroUtils';
 import { MockStream } from './openai/streaming';
 import TromeroClient from './Tromero_Client';
@@ -28,8 +31,6 @@ interface ClientOptions extends openai.ClientOptions {
 }
 
 export default class Tromero extends openai.OpenAI {
-  public tromeroClient?: TromeroClient;
-
   constructor({ tromeroKey, apiKey, ...opts }: ClientOptions) {
     super({ apiKey, ...opts });
 
@@ -66,7 +67,7 @@ class MockChat extends openai.OpenAI.Chat {
 }
 
 class MockCompletions extends openai.OpenAI.Chat.Completions {
-  tromeroClient?: TromeroClient;
+  private tromeroClient?: TromeroClient;
 
   constructor(client: openai.OpenAI) {
     super(client);
@@ -106,7 +107,7 @@ class MockCompletions extends openai.OpenAI.Chat.Completions {
     kwargs: { [key: string]: any },
     isOpenAIModel: boolean
   ): Promise<
-    [ChatCompletionCreateParamsBase | TromeroCompletionParams, TromeroArgs]
+    [ChatCompletionCreateParamsBase | TromeroCompletionParamsBase, TromeroArgs]
   > {
     const validOpenAiKeys = new Set([
       'messages',
@@ -171,12 +172,17 @@ class MockCompletions extends openai.OpenAI.Chat.Completions {
       'saveData',
     ]);
 
-    const tromeroParams: TromeroCompletionParams = { model: '', messages: [] };
+    const tromeroParams: TromeroCompletionParamsBase = {
+      model: '',
+      messages: [],
+    };
     const openAiParams: ChatCompletionCreateParamsBase = {
       model: '',
       messages: [],
     };
-    const settings: TromeroArgs = {};
+    const settings: TromeroArgs = {
+      useFallback: true,
+    };
 
     let invalidKeyFound = false;
 
@@ -272,19 +278,19 @@ class MockCompletions extends openai.OpenAI.Chat.Completions {
 
   create(
     body: ChatCompletionCreateParamsNonStreaming &
-      TromeroCompletionParams &
+      TromeroCompletionParamsNonStream &
       TromeroArgs,
     options?: Core.RequestOptions
   ): Core.APIPromise<ChatCompletion>;
   create(
     body: ChatCompletionCreateParamsStreaming &
-      TromeroCompletionParams &
+      TromeroCompletionParamsStream &
       TromeroArgs,
     options?: Core.RequestOptions
   ): Core.APIPromise<MockStream>;
   create(
     body: ChatCompletionCreateParamsBase &
-      TromeroCompletionParams &
+      TromeroCompletionParamsBase &
       TromeroArgs,
     options?: Core.RequestOptions
   ): Core.APIPromise<Stream<ChatCompletionChunk> | ChatCompletion>;
@@ -318,7 +324,7 @@ class MockCompletions extends openai.OpenAI.Chat.Completions {
     const isOpenAIModel = await this.isModelFromOpenAI(body.model);
     const [newKwargs, settings] = await this.formatParams(body, isOpenAIModel);
     newKwargs.messages = this.formatMessages(
-      newKwargs.messages as Array<ChatCompletionMessageParam>
+      newKwargs.messages as ChatCompletionMessageParam[]
     );
 
     let modelNameForLogs = newKwargs.model;
@@ -334,7 +340,6 @@ class MockCompletions extends openai.OpenAI.Chat.Completions {
           modelNameForLogs,
         });
       } else if (!isOpenAIModel && this.tromeroClient) {
-        console.log('Tromero model');
         return await this.handleTromeroModel({
           body: newKwargs as TromeroCompletionParams,
           tags,
@@ -450,12 +455,6 @@ class MockCompletions extends openai.OpenAI.Chat.Completions {
     | undefined
     | Error
   > {
-    let res:
-      | MockChatCompletion
-      | AsyncIterableIterator<ChatCompletionChunkStreamClass>
-      | undefined
-      | Error;
-
     const { messages, model, stream, ...tromeroParams } = body;
 
     try {
@@ -478,7 +477,7 @@ class MockCompletions extends openai.OpenAI.Chat.Completions {
 
       if (stream && modelData) {
         try {
-          const response = this.tromeroClient!.createStream(
+          const res = this.tromeroClient!.createStream(
             modelData!.adapter_name,
             modelData!.url,
             messages,
@@ -496,20 +495,21 @@ class MockCompletions extends openai.OpenAI.Chat.Completions {
               : tromeroParams
           );
 
-          if (!response || !response[Symbol.asyncIterator]) {
+          if (!res || !res[Symbol.asyncIterator]) {
             throw new Error('Stream not created');
           }
 
-          try {
-            await response.next();
-          } catch (error) {
-            throw error;
-          }
-          return response;
+          // try {
+          //   await res.next();
+          // } catch (error) {
+          //   throw error;
+          // }
+          return res;
         } catch (error) {
           throw error;
         }
       } else if (modelData) {
+        let res: MockChatCompletion = new MockChatCompletion([], model, {});
         try {
           const response = await this.tromeroClient!.create(
             modelData!.adapter_name,

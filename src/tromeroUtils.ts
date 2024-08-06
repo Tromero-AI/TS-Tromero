@@ -1,3 +1,5 @@
+import { ChatCompletionMessageParam } from 'openai/resources';
+
 export interface TromeroOptions {
   tromeroKey: string;
   baseURL?: string;
@@ -10,27 +12,57 @@ export interface ApiResponse {
   [key: string]: any;
 }
 
-export class Message {
-  content: string | null;
-  role?: 'assistant' | 'user' | 'system' | 'tool' | undefined;
-  tool_call_id?: string;
+type SystemMessageParams = {
+  role: 'system';
+  content: string;
+  name?: string;
+};
 
-  constructor(
-    content: string | null,
-    role:
-      | 'assistant'
-      | 'user'
-      | 'system'
-      | 'tool'
-      | undefined = 'assistant' as const
-  ) {
+type UserMessageParams = {
+  role: 'user';
+  content: string;
+  name?: string;
+};
+
+type AssistantMessageParams = {
+  role: 'assistant';
+  content?: string | null;
+  tool_calls?: any[];
+};
+
+type ToolMessageParams = {
+  role: 'tool';
+  content: string;
+  tool_call_id: string;
+};
+
+type FunctionMessageParams = {
+  role: 'function';
+  content: string | null;
+  name: string;
+};
+
+export type MessageParams =
+  | SystemMessageParams
+  | UserMessageParams
+  | AssistantMessageParams
+  | ToolMessageParams
+  | FunctionMessageParams;
+
+export class MockMessage {
+  content: string;
+  role: 'assistant';
+
+  constructor(content: string) {
     this.content = content;
-    this.role = role;
+    this.role = 'assistant';
   }
 }
 
+export type Message = ChatCompletionMessageParam | MessageParams | MockMessage;
+
 export class Choice {
-  message: Message;
+  message: MockMessage;
   finish_reason:
     | 'stop'
     | 'length'
@@ -40,12 +72,8 @@ export class Choice {
   index: number;
   logprobs: any;
 
-  constructor(message: string | Message, index: number = 0) {
-    if (typeof message === 'string') {
-      this.message = new Message(message);
-    } else {
-      this.message = new Message(message.content, message.role);
-    }
+  constructor(message: string, index: number = 0) {
+    this.message = new MockMessage(message);
     this.finish_reason = 'stop' as const;
     this.index = index;
     this.logprobs = null;
@@ -58,12 +86,12 @@ export class MockChatCompletion {
   model: string;
   created: number;
   usage: any;
-  object: string;
+  object: 'chat.completion';
 
   constructor(choices: Choice[], model: string = '', usage = {}) {
     this.choices = choices;
     this.id = '';
-    this.object = 'chat.completion';
+    this.object = 'chat.completion' as const;
     this.model = model;
     this.created = Math.floor(Date.now() / 1000);
     this.usage = usage;
@@ -71,14 +99,11 @@ export class MockChatCompletion {
 }
 
 export function mockOpenAIFormat(
-  messages: Message[],
+  message: string,
   model: string,
   usage: { [key: string]: string }
 ): MockChatCompletion {
-  const choices = Array.from(
-    { length: messages.length },
-    (_, i) => new Choice(messages[i], i)
-  );
+  const choices = [new Choice(message)];
   const response = new MockChatCompletion(choices, model, usage);
   return response;
 }
@@ -106,7 +131,21 @@ export type TromeroArgs = {
   saveData?: boolean;
 };
 
-export interface TromeroCompletionParams {
+export interface TromeroCompletionParamsNonStream
+  extends TromeroCompletionParamsBase {
+  stream?: false | null;
+}
+
+export interface TromeroCompletionParamsStream
+  extends TromeroCompletionParamsBase {
+  stream: true;
+}
+
+export type TromeroCompletionParams =
+  | TromeroCompletionParamsNonStream
+  | TromeroCompletionParamsStream;
+
+export interface TromeroCompletionParamsBase {
   /**
    * Name of the model to use.
    */
@@ -152,6 +191,11 @@ export interface TromeroCompletionParams {
    */
   frequency_penalty?: number;
 
+  /**
+   * Float that controls the randomness of the sampling. Lower
+   * values make the model more deterministic, while higher values make
+   * the model more random. Zero means greedy sampling.
+   */
   /**
    * Float that penalizes new tokens based on whether
    * they appear in the prompt and the generated text so far. Values > 1
@@ -308,7 +352,7 @@ interface ChatCompletionChunkStreamParams {
 
 interface ChoiceStream {
   index: number;
-  delta: Message;
+  delta: MockMessage;
   logprobs: any;
   finish_reason: any;
 }
@@ -320,7 +364,6 @@ export class ChatCompletionChunkStreamClass {
   model: string;
   system_fingerprint?: string;
   choices: ChoiceStream[];
-  streamResponse: string;
   finishReason: any;
 
   constructor({
@@ -336,12 +379,11 @@ export class ChatCompletionChunkStreamClass {
     this.created = created;
     this.model = model;
     this.system_fingerprint = system_fingerprint;
-    this.streamResponse = streamResponse;
     this.finishReason = finishReason;
     this.choices = [
       {
         index: 0,
-        delta: new Message(streamResponse),
+        delta: new MockMessage(streamResponse),
         logprobs: null,
         finish_reason: finishReason,
       },
@@ -361,3 +403,7 @@ export type ModelDataDetails = {
 export type ModelData = {
   [key: string]: ModelDataDetails;
 };
+
+export type CreateApiResponse =
+  | { generated_text: string; usage: { completion_tokens: number } }
+  | { error: string; status_code: string | number };

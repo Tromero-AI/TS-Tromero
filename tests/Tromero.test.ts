@@ -32,7 +32,6 @@ describe('Tromero', () => {
 
   test('should create a new TromeroClient instance if tromeroKey is provided', () => {
     expect(tromeroClient).toBeInstanceOf(TromeroClient);
-    expect(tromero.chat.completions.tromeroClient).toBe(tromeroClient);
   });
 
   test('should warn if no keys are provided', () => {
@@ -101,39 +100,37 @@ describe('Tromero', () => {
     expect(response).toBe(mockStreamInstance);
   });
 
-  // test('should handle fallback model if provided', async () => {
-  //   const body: tromeroUtils.TromeroCompletionParams &
-  //     tromeroUtils.TromeroArgs = {
-  //     model: 'invalid-model',
-  //     messages: [{ role: 'user', content: 'Hello' }],
-  //   };
+  test('should handle fallback model if provided', async () => {
+    const body = {
+      model: 'invalid-model',
+      messages: [{ role: 'user', content: 'Hello' }],
+    };
 
-  //   const createMock = jest
-  //     .fn()
-  //     .mockRejectedValueOnce(new Error('Invalid model'))
-  //     .mockResolvedValueOnce({
-  //       choices: [
-  //         { message: { role: 'assistant', content: 'Fallback response' } },
-  //       ],
-  //     });
+    const createMock = jest
+      .fn()
+      .mockRejectedValueOnce(new Error('Invalid model'))
+      .mockResolvedValueOnce({
+        choices: [
+          { message: { role: 'assistant', content: 'Fallback response' } },
+        ],
+      });
 
-  //   tromero.chat.completions.create = createMock;
+    tromero.chat.completions.create = createMock;
 
-  //   const response = await tromero.chat.completions.create({
-  //     ...body,
-  //     saveData: true,
-  //     stream: true,
-  //     tags: ['test'],
-  //     fallbackModel: 'fallback-model',
-  //   });
-  //   expect(createMock).toHaveBeenCalledTimes(2);
-  //   expect(createMock).toHaveBeenCalledWith(
-  //     expect.objectContaining({
-  //       model: 'fallback-model',
-  //       messages: [{ role: 'user', content: 'Hello' }],
-  //     }),
-  //     undefined
-  //   );
-  //   expect(response.choices[0].message.content).toBe('Fallback response');
-  // });
+    const response = await tromero.chat.completions.create({
+      ...body,
+      saveData: true,
+      tags: ['test'],
+      fallbackModel: 'fallback-model',
+    });
+    expect(createMock).toHaveBeenCalledTimes(2);
+    expect(createMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        model: 'fallback-model',
+        messages: [{ role: 'user', content: 'Hello' }],
+      }),
+      undefined
+    );
+    expect(response.choices[0].message.content).toBe('Fallback response');
+  });
 });
