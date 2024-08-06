@@ -1,8 +1,12 @@
-# Tromero API
+# Tromero
+
+## Overview
+
+This package is a Node.js client library for the [Tromero API](https://docs.tromero.ai/). It provides a convenient way to interact with the API and build AI-powered applications using JavaScript or TypeScript. For more information about tromero, please visit our [website](https://www.tromero.ai/).
 
 ## Installation
 
-To install Tromero API, you can use npm:
+To install the package, you can use npm:
 
 ```sh
 npm install tromero
@@ -11,7 +15,7 @@ npm install tromero
 ## Getting Started
 
 Ensure you have set up both your OpenAI key and your Tromero key. You can follow the instructions on our site to create a Tromero API key.
-[How to get a Tromero API key](https://docs.tromero.ai/python-package/openai-compatibility#prerequisites)
+[How to get a Tromero API key](https://docs.tromero.ai/python-package/openai-compatibility#prerequisites). In order to get a tromero key, you need to have an account on Tromero.
 
 ### Importing the Package
 
@@ -52,37 +56,15 @@ const completion = await client.chat.completions.create({
 });
 ```
 
-And for your trained model:
+And for your trained models:
 
 ```javascript
 const completion = await client.chat.completions.create({
-  model: 'chatbot-202408', // your model hosted on Tromero
+  model: 'chatbot-202408', // your model hosted on Tromero.
   messages: [
     { role: 'system', content: 'You are a friendly chatbot.' },
     { role: 'user', content: `${userPrompt}` },
   ],
-});
-```
-
-#### JSON Formatting
-
-Tromero supports JSON response formatting, allowing you to specify the expected structure of the response using a JSON schema. Formatting works for models you have trained on Tromero.
-
-##### Specifying the Response Format in API Calls for OpenAI Models
-
-When making API calls to OpenAI models where you expect the response to adhere to a specific format, you can specify the JSON schema using the `response_format` parameter. Here’s how you can pass this parameter in your API calls (you must explicitly mention you want a json response in your request):
-
-```javascript
-const response = await client.createCompletion({
-  model: 'gpt-4o-mini',
-  messages: [
-    {
-      role: 'user',
-      content:
-        'Please provide your name and age. Use json format in the response',
-    },
-  ],
-  response_format: { type: 'json_object' },
 });
 ```
 
