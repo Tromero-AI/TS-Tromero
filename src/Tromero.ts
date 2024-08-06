@@ -492,7 +492,8 @@ class MockCompletions extends openai.OpenAI.Chat.Completions {
                     ? tags
                     : '',
                 }
-              : tromeroParams
+              : tromeroParams,
+            this.saveDataOnServer.bind(this)
           );
 
           if (!res || !res[Symbol.asyncIterator]) {

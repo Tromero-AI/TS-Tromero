@@ -1,3 +1,4 @@
+import { ChatCompletionMessageParam } from 'openai/resources';
 import {
   ApiResponse,
   ChatCompletionChunkStreamClass,
@@ -194,10 +195,12 @@ export default class TromeroClient {
       } finally {
         reader.releaseLock();
         if (callback && parameters.saveData) {
+          const newMessages: ChatCompletionMessageParam[] = messages.concat([
+            { role: 'assistant', content: fullText },
+          ]);
+          console.log('log to save: ', newMessages);
           await callback(true, {
-            messages: messages.concat([
-              { role: 'assistant', content: fullText },
-            ]),
+            messages: newMessages,
             model: parameters.model,
             kwargs: parameters.kwargs,
             creation_time: new Date().toISOString(),

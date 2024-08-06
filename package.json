@@ -1,12 +1,16 @@
 {
   "name": "tromero",
   "version": "1.0.0",
-  "description": "NPM package to conveniently integrate the Tromero service with your Javascript or Typescript application",
+  "description": "NPM package to conveniently integrate the Tromero service with your Node application. Fully typed",
   "module": "./dist/index.mjs",
   "types": "./dist/index.d.ts",
   "files": [
     "dist"
   ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/proofoftraining/TS-Tromero.git"
+  },
   "scripts": {
     "test": "jest",
     "build": "tsup"
