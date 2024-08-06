@@ -1,0 +1,17 @@
+# Ignore node_modules
+node_modules
+
+# Ignore TypeScript source files
+src
+
+# Ignore test files
+tests
+
+# Ignore config files
+tsconfig.json
+tsup.config.ts
+jest.config.js
+
+# Ignore other unnecessary files
+.gitignore
+package-lock.json
