@@ -498,12 +498,6 @@ class MockCompletions extends openai.OpenAI.Chat.Completions {
           if (!res || !res[Symbol.asyncIterator]) {
             throw new Error('Stream not created');
           }
-
-          // try {
-          //   await res.next();
-          // } catch (error) {
-          //   throw error;
-          // }
           return res;
         } catch (error) {
           throw error;
