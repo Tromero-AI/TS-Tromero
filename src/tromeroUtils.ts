@@ -12,43 +12,6 @@ export interface ApiResponse {
   [key: string]: any;
 }
 
-type SystemMessageParams = {
-  role: 'system';
-  content: string;
-  name?: string;
-};
-
-type UserMessageParams = {
-  role: 'user';
-  content: string;
-  name?: string;
-};
-
-type AssistantMessageParams = {
-  role: 'assistant';
-  content?: string | null;
-  tool_calls?: any[];
-};
-
-type ToolMessageParams = {
-  role: 'tool';
-  content: string;
-  tool_call_id: string;
-};
-
-type FunctionMessageParams = {
-  role: 'function';
-  content: string | null;
-  name: string;
-};
-
-export type MessageParams =
-  | SystemMessageParams
-  | UserMessageParams
-  | AssistantMessageParams
-  | ToolMessageParams
-  | FunctionMessageParams;
-
 export class MockMessage {
   content: string;
   role: 'assistant';
@@ -59,7 +22,7 @@ export class MockMessage {
   }
 }
 
-export type Message = ChatCompletionMessageParam | MessageParams | MockMessage;
+export type Message = ChatCompletionMessageParam;
 
 export class Choice {
   message: MockMessage;
@@ -403,7 +366,3 @@ export type ModelDataDetails = {
 export type ModelData = {
   [key: string]: ModelDataDetails;
 };
-
-export type CreateApiResponse =
-  | { generated_text: string; usage: { completion_tokens: number } }
-  | { error: string; status_code: string | number };
