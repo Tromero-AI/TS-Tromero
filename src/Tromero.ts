@@ -28,15 +28,17 @@ import TromeroClient from './Tromero_Client';
 interface ClientOptions extends openai.ClientOptions {
   apiKey?: string;
   tromeroKey?: string;
+  saveData?: boolean;
 }
 
 export default class Tromero extends openai.OpenAI {
-  constructor({ tromeroKey, apiKey, ...opts }: ClientOptions) {
+  constructor({ tromeroKey, apiKey, saveData, ...opts }: ClientOptions) {
     super({ apiKey, ...opts });
 
     if (tromeroKey) {
       const tromeroClient = new TromeroClient({ tromeroKey });
       this.chat.setClient(tromeroClient);
+      this.chat.setSaveDataGlobal(saveData || false);
     } else {
       if (apiKey) {
         console.warn(
@@ -64,10 +66,15 @@ class MockChat extends openai.OpenAI.Chat {
   setClient(client: TromeroClient) {
     this.completions.setTromeroClient(client);
   }
+
+  setSaveDataGlobal(saveDataGlobal: boolean) {
+    this.completions.setSaveDataGlobal(saveDataGlobal);
+  }
 }
 
 class MockCompletions extends openai.OpenAI.Chat.Completions {
   private tromeroClient?: TromeroClient;
+  private saveDataGlobal?: boolean;
 
   constructor(client: openai.OpenAI) {
     super(client);
@@ -75,6 +82,10 @@ class MockCompletions extends openai.OpenAI.Chat.Completions {
 
   setTromeroClient(client: TromeroClient) {
     this.tromeroClient = client;
+  }
+
+  setSaveDataGlobal(saveDataGlobal: boolean) {
+    this.saveDataGlobal = saveDataGlobal;
   }
 
   private async isModelFromOpenAI(model: string): Promise<boolean> {
@@ -92,7 +103,7 @@ class MockCompletions extends openai.OpenAI.Chat.Completions {
   }
 
   private async saveDataOnServer(
-    saveData: boolean,
+    saveData: boolean = false,
     data: any
   ): Promise<string> {
     try {
@@ -163,6 +174,7 @@ class MockCompletions extends openai.OpenAI.Chat.Completions {
       'logits_processors',
       'truncate_prompt_tokens',
       'stream',
+      'tools',
     ]);
 
     const validExtraKeys = new Set([
@@ -336,14 +348,14 @@ class MockCompletions extends openai.OpenAI.Chat.Completions {
           body: newKwargs as ChatCompletionCreateParamsBase,
           options,
           tags,
-          saveData,
+          saveData: this.saveDataGlobal ? true : saveData,
           modelNameForLogs,
         });
       } else if (!isOpenAIModel && this.tromeroClient) {
         return await this.handleTromeroModel({
           body: newKwargs as TromeroCompletionParams,
           tags,
-          saveData,
+          saveData: this.saveDataGlobal ? true : saveData,
           modelNameForLogs,
         });
       } else {
@@ -397,7 +409,7 @@ class MockCompletions extends openai.OpenAI.Chat.Completions {
         return Promise.reject(error);
       }
       return new MockStream(res, async (response) => {
-        if (!saveData) return '';
+        if (!saveData && !this.saveDataGlobal) return '';
         const dataToSend = {
           messages: [...messages, response?.choices[0].message],
           model: modelNameForLogs,

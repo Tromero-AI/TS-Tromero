@@ -1,4 +1,8 @@
-import { ChatCompletionMessageParam } from 'openai/resources';
+import {
+  ChatCompletionMessageParam,
+  ChatCompletionMessageToolCall,
+  ChatCompletionTool,
+} from 'openai/resources';
 
 export interface TromeroOptions {
   tromeroKey: string;
@@ -15,10 +19,17 @@ export interface ApiResponse {
 export class MockMessage {
   content: string;
   role: 'assistant';
+  tool_calls?: Array<ChatCompletionMessageToolCall>;
 
-  constructor(content: string) {
+  constructor(
+    content: string,
+    tool_calls?: Array<ChatCompletionMessageToolCall>
+  ) {
     this.content = content;
     this.role = 'assistant';
+    if (tool_calls) {
+      this.tool_calls = tool_calls;
+    }
   }
 }
 
@@ -97,6 +108,7 @@ export type TromeroArgs = {
 export interface TromeroCompletionParamsNonStream
   extends TromeroCompletionParamsBase {
   stream?: false | null;
+  tools?: Array<ChatCompletionTool>;
 }
 
 export interface TromeroCompletionParamsStream
