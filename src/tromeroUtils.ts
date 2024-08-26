@@ -388,3 +388,7 @@ export function tagsToString(
     ? tags
     : '';
 }
+
+export function validateFileContent(filePath: string): boolean {
+  return true;
+}

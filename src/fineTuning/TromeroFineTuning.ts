@@ -99,7 +99,7 @@ export class FineTuningJob implements FineTuningJobInterface {
     const data: any = { modelName, baseModel };
     if (parameters) {
       if (typeof parameters === 'string') {
-        parameters = JSON.parse(parameters);
+        parameters = await JSON.parse(parameters);
         console.log(parameters);
       }
       Object.assign(data, parameters);
@@ -150,20 +150,20 @@ export class TromeroModels implements TromeroModelsInterface {
       : [];
   }
 
-  deploy(modelName: string): any {
-    return deployModelRequest(modelName, this.tromeroKey);
+  async deploy(modelName: string): Promise<any> {
+    return await deployModelRequest(modelName, this.tromeroKey);
   }
 
-  getInfo(modelName: string, raw?: boolean): Model | any {
+  async getInfo(modelName: string, raw?: boolean): Promise<Model | any> {
     raw = setRaw(raw, this.rawDefault);
-    const response = getModelRequest(modelName, this.tromeroKey);
+    const response = await getModelRequest(modelName, this.tromeroKey);
     if (raw) {
       return response;
     }
     return new Model(response.message);
   }
 
-  undeploy(modelName: string): any {
+  async undeploy(modelName: string): Promise<any> {
     return undeployModelRequest(modelName, this.tromeroKey);
   }
 }
@@ -179,26 +179,26 @@ export class TromeroData implements TromeroDataInterface {
     this.tromeroKey = tromeroKey;
   }
 
-  upload(
+  async upload(
     filePath: string,
     tags: string[] | string,
     makeSyntheticVersion: boolean = false
-  ): boolean | undefined {
+  ): Promise<boolean | undefined> {
     if (typeof tags === 'string') {
       tags = [tags];
     }
     if (!validateFileContent(filePath)) {
       return;
     }
-    const [signedUrl, filename] = getSignedUrl(this.tromeroKey);
+    const { signedUrl, filename } = await getSignedUrl(this.tromeroKey);
     uploadFileToUrl(signedUrl, filePath);
     saveLogs(filename, tags, this.tromeroKey, makeSyntheticVersion);
     console.log(`File uploaded successfully! Tags: ${tags}`);
     return true;
   }
 
-  getTags(): string[] {
-    const response = getTags(this.tromeroKey);
+  async getTags(): Promise<string[]> {
+    const response = await getTags(this.tromeroKey);
     return response.message;
   }
 }
