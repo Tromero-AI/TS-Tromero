@@ -57,14 +57,18 @@ export class Datasets implements DatasetInterface {
     return true;
   }
 
-  createFromTags(name: string, description: string, tags: string[]): boolean {
+  async createFromTags(
+    name: string,
+    description: string,
+    tags: string[]
+  ): Promise<boolean> {
     createDataset(name, description, tags, this.tromeroKey);
     return true;
   }
 
-  list(raw?: boolean): Dataset[] | any[] {
+  async list(raw?: boolean): Promise<Dataset[]> {
     raw = setRaw(raw, this.rawDefault);
-    const response = getTags(this.tromeroKey);
+    const response = await getTags(this.tromeroKey);
     const datasets = response.datasets || [];
     if (raw) {
       return datasets;
