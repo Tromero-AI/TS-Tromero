@@ -21,9 +21,11 @@ import {
   TromeroCompletionParams,
   TromeroCompletionParamsNonStream,
   TromeroCompletionParamsStream,
+  tagsToString,
 } from './tromeroUtils';
 import { MockStream } from './openai/streaming';
-import TromeroClient from './Tromero_Client';
+import TromeroClient from './TromeroClient';
+import { TromeroModels } from './fineTuning/TromeroFineTuning';
 
 interface ClientOptions extends openai.ClientOptions {
   apiKey?: string;
@@ -39,6 +41,7 @@ export default class Tromero extends openai.OpenAI {
       const tromeroClient = new TromeroClient({ tromeroKey });
       this.chat.setClient(tromeroClient);
       this.chat.setSaveDataGlobal(saveData || false);
+      this.tromeroModels = new TromeroModels(tromeroKey);
     } else {
       if (apiKey) {
         console.warn(
@@ -53,6 +56,7 @@ export default class Tromero extends openai.OpenAI {
   }
 
   chat: MockChat = new MockChat(this);
+  tromeroModels?: TromeroModels;
 }
 
 class MockChat extends openai.OpenAI.Chat {
@@ -415,11 +419,7 @@ class MockCompletions extends openai.OpenAI.Chat.Completions {
           model: modelNameForLogs,
           kwargs: openAiParams,
           creation_time: new Date().toISOString(),
-          tags: Array.isArray(tags)
-            ? tags.join(', ')
-            : typeof tags === 'string'
-            ? tags
-            : '',
+          tags: tagsToString(tags),
         };
         return await this.saveDataOnServer(saveData, dataToSend);
       });

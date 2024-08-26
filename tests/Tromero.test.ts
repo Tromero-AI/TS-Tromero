@@ -1,5 +1,5 @@
 import Tromero from '../src/Tromero';
-import TromeroClient from '../src/Tromero_Client';
+import TromeroClient from '../src/TromeroClient';
 import { MockStream } from '../src/openai/streaming';
 import * as tromeroUtils from '../src/tromeroUtils';
 import type {

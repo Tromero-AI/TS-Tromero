@@ -378,3 +378,13 @@ export type ModelDataDetails = {
 export type ModelData = {
   [key: string]: ModelDataDetails;
 };
+
+export function tagsToString(
+  tags: string[] | string | number[] | number | undefined
+): string {
+  return Array.isArray(tags)
+    ? tags.join(', ')
+    : typeof tags === 'string'
+    ? tags
+    : '';
+}

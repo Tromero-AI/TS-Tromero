@@ -7,6 +7,7 @@ import {
   TromeroCompletionParams,
   TromeroOptions,
 } from './tromeroUtils';
+import { baseURL, dataURL } from './constants';
 
 export default class TromeroClient {
   private dataURL: string;
@@ -14,11 +15,7 @@ export default class TromeroClient {
   private apiKey: string;
   modelData: ModelData;
 
-  constructor({
-    tromeroKey,
-    baseURL = 'https://midyear-grid-402910.lm.r.appspot.com/tailor/v1',
-    dataURL = `${baseURL}/data`,
-  }: TromeroOptions) {
+  constructor({ tromeroKey }: TromeroOptions) {
     this.apiKey = tromeroKey;
     this.dataURL = dataURL;
     this.baseURL = baseURL;
