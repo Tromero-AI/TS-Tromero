@@ -25,71 +25,85 @@ import {
 } from './tromeroUtils';
 import { MockStream } from './openai/streaming';
 import TromeroClient from './TromeroClient';
-import { TromeroModels } from './fineTuning/TromeroFineTuning';
+import {
+  TromeroData,
+  TromeroDatasets,
+  TromeroModels,
+} from './fineTuning/TromeroFineTuning';
 
 interface ClientOptions extends openai.ClientOptions {
   apiKey?: string;
   tromeroKey?: string;
-  saveData?: boolean;
+  saveDataDefault?: boolean;
 }
 
 export default class Tromero extends openai.OpenAI {
-  constructor({ tromeroKey, apiKey, saveData, ...opts }: ClientOptions) {
+  constructor({
+    tromeroKey,
+    apiKey,
+    saveDataDefault = false,
+    ...opts
+  }: ClientOptions) {
     super({ apiKey, ...opts });
 
+    this.saveDataDefault = saveDataDefault;
+    this.chat = new MockChat(this, this.saveDataDefault);
+    this.tromeroModels = undefined!;
+    this.tromeroDatasets = undefined!;
     if (tromeroKey) {
       const tromeroClient = new TromeroClient({ tromeroKey });
-      this.chat.setClient(tromeroClient);
-      this.chat.setSaveDataGlobal(saveData || false);
       this.tromeroModels = new TromeroModels(tromeroKey);
-    } else {
-      if (apiKey) {
-        console.warn(
-          "You're using the Tromero client without an OpenAI API key. You won't be able to use OpenAI models."
-        );
-      } else {
-        console.warn(
-          "You haven't set an apiKey for OpenAI or a tromeroKey for Tromero. Please set one of these to use the client."
-        );
-      }
+      this.tromeroDatasets = new TromeroDatasets(tromeroKey);
+      this.chat.setClient(tromeroClient);
+    } else if (tromeroKey && !apiKey) {
+      console.warn(
+        "You're using the Tromero client without an OpenAI API key. You won't be able to use OpenAI models or other OpenAI features."
+      );
+    } else if (!tromeroKey && apiKey) {
+      console.warn(
+        "You're using the OpenAI client without a Tromero key. You won't be able to use Tromero models or other Tromero features."
+      );
+    } else if (!tromeroKey && !apiKey) {
+      console.warn(
+        "You haven't set an apiKey for OpenAI or a tromeroKey for Tromero. Please set one of these to use the client."
+      );
     }
   }
 
-  chat: MockChat = new MockChat(this);
-  tromeroModels?: TromeroModels;
+  chat: MockChat;
+  tromeroModels: TromeroModels;
+  tromeroDatasets: TromeroDatasets;
+  saveDataDefault: boolean;
 }
 
 class MockChat extends openai.OpenAI.Chat {
   completions: MockCompletions;
 
-  constructor(client: openai.OpenAI) {
+  constructor(client: openai.OpenAI, saveDataDefault: boolean) {
     super(client);
-    this.completions = new MockCompletions(client);
+    this.completions = new MockCompletions(client, saveDataDefault);
   }
 
+  /**
+   * Set the TromeroClient for the completions object.
+   * @param client The TromeroClient object to use for completions.
+   */
   setClient(client: TromeroClient) {
     this.completions.setTromeroClient(client);
-  }
-
-  setSaveDataGlobal(saveDataGlobal: boolean) {
-    this.completions.setSaveDataGlobal(saveDataGlobal);
   }
 }
 
 class MockCompletions extends openai.OpenAI.Chat.Completions {
   private tromeroClient?: TromeroClient;
-  private saveDataGlobal?: boolean;
+  private saveDataDefault: boolean;
 
-  constructor(client: openai.OpenAI) {
+  constructor(client: openai.OpenAI, saveDataDefault: boolean) {
     super(client);
+    this.saveDataDefault = saveDataDefault;
   }
 
   setTromeroClient(client: TromeroClient) {
     this.tromeroClient = client;
-  }
-
-  setSaveDataGlobal(saveDataGlobal: boolean) {
-    this.saveDataGlobal = saveDataGlobal;
   }
 
   private async isModelFromOpenAI(model: string): Promise<boolean> {
@@ -352,14 +366,14 @@ class MockCompletions extends openai.OpenAI.Chat.Completions {
           body: newKwargs as ChatCompletionCreateParamsBase,
           options,
           tags,
-          saveData: this.saveDataGlobal ? true : saveData,
+          saveData: saveData ? true : this.saveDataDefault,
           modelNameForLogs,
         });
       } else if (!isOpenAIModel && this.tromeroClient) {
         return await this.handleTromeroModel({
           body: newKwargs as TromeroCompletionParams,
           tags,
-          saveData: this.saveDataGlobal ? true : saveData,
+          saveData: saveData ? true : this.saveDataDefault,
           modelNameForLogs,
         });
       } else {
@@ -413,7 +427,7 @@ class MockCompletions extends openai.OpenAI.Chat.Completions {
         return Promise.reject(error);
       }
       return new MockStream(res, async (response) => {
-        if (!saveData && !this.saveDataGlobal) return '';
+        if (!saveData && !this.saveDataDefault) return '';
         const dataToSend = {
           messages: [...messages, response?.choices[0].message],
           model: modelNameForLogs,
@@ -438,11 +452,7 @@ class MockCompletions extends openai.OpenAI.Chat.Completions {
               model: modelNameForLogs,
               kwargs: openAiParams,
               creation_time: new Date().toISOString(),
-              tags: Array.isArray(tags)
-                ? tags.join(', ')
-                : typeof tags === 'string'
-                ? tags
-                : '',
+              tags: tagsToString(tags),
             });
           }
         }
@@ -498,11 +508,7 @@ class MockCompletions extends openai.OpenAI.Chat.Completions {
                   saveData,
                   model: modelNameForLogs,
                   kwargs: tromeroParams,
-                  tags: Array.isArray(tags)
-                    ? tags.join(', ')
-                    : typeof tags === 'string'
-                    ? tags
-                    : '',
+                  tags: tagsToString(tags),
                 }
               : tromeroParams,
             this.saveDataOnServer.bind(this)
@@ -537,11 +543,7 @@ class MockCompletions extends openai.OpenAI.Chat.Completions {
                   model: modelNameForLogs,
                   kwargs: tromeroParams,
                   creation_time: new Date().toISOString(),
-                  tags: Array.isArray(tags)
-                    ? tags.join(', ')
-                    : typeof tags === 'string'
-                    ? tags
-                    : '',
+                  tags: tagsToString(tags),
                 });
               }
             }

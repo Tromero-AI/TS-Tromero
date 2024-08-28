@@ -9,7 +9,7 @@ import type {
 import { Stream } from 'openai/streaming';
 
 jest.mock('openai');
-jest.mock('../src/Tromero_Client');
+jest.mock('../src/TromeroClient');
 jest.mock('../src/openai/streaming');
 jest.mock('../src/tromeroUtils');
 jest.mock('../src/openai/mergeChunks');

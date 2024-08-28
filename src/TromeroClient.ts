@@ -9,6 +9,9 @@ import {
 } from './tromeroUtils';
 import { baseURL, dataURL } from './constants';
 
+/**
+ *  TromeroClient class that interacts with the Tromero API
+ */
 export default class TromeroClient {
   private dataURL: string;
   private baseURL: string;

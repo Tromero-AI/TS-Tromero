@@ -126,6 +126,11 @@ interface GetModelsResponse {
   [key: string]: unknown;
 }
 
+interface DeployResponse {
+  message: string;
+  status: string;
+}
+
 export async function getModels(
   tromeroKey: string
 ): Promise<GetModelsResponse> {
@@ -168,7 +173,7 @@ export async function getModelTrainingInfo(
 export async function deployModelRequest(
   modelName: string,
   tromeroKey: string
-): Promise<any> {
+): Promise<DeployResponse> {
   const headers = new Headers({
     'X-API-KEY': tromeroKey,
     'Content-Type': 'application/json',
@@ -177,11 +182,13 @@ export async function deployModelRequest(
   const response = await fetch(`${baseURL}/deploy_model`, {
     method: 'POST',
     headers,
-    body: JSON.stringify({ modelName }),
+    body: JSON.stringify({ model_name: modelName }),
   });
 
   if (!response.ok) {
-    throw new Error(`HTTP error! status: ${response.status}`);
+    throw new Error(
+      `HTTP error! status: ${response.status}, ${response.statusText}`
+    );
   }
 
   return response.json();
@@ -201,7 +208,9 @@ export async function getModelRequest(
     headers,
   });
   if (!response.ok) {
-    throw new Error(`HTTP error! status: ${response.status}`);
+    throw new Error(
+      `HTTP error! status: ${response.status}, ${response.statusText}`
+    );
   }
 
   return response.json();
@@ -219,11 +228,13 @@ export async function undeployModelRequest(
   const response = await fetch(`${baseURL}/undeploy_model`, {
     method: 'POST',
     headers,
-    body: JSON.stringify({ modelName }),
+    body: JSON.stringify({ model_name: modelName }),
   });
 
   if (!response.ok) {
-    throw new Error(`HTTP error! status: ${response.status}`);
+    throw new Error(
+      `HTTP error! status: ${response.status}, ${response.statusText}`
+    );
   }
 
   return response.json();
