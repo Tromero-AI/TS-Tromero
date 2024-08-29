@@ -67,8 +67,17 @@ export default class TromeroClient {
     });
   }
 
-  async getModelUrl(modelName: string): Promise<ApiResponse> {
-    return this.fetchData(`${this.baseURL}/model/${modelName}/url`, {
+  async getModelUrl(
+    modelName: string,
+    locationPreference?: string
+  ): Promise<ApiResponse> {
+    const url = locationPreference
+      ? `${
+          this.baseURL
+        }/model/${modelName}/url?location_preference=${locationPreference.toLowerCase()}`
+      : `${this.baseURL}/model/${modelName}/url`;
+
+    return this.fetchData(url, {
       method: 'GET',
       headers: {
         'X-API-KEY': this.apiKey,

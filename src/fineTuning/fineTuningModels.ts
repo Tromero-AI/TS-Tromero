@@ -371,3 +371,24 @@ export class Dataset {
     this.updatedAt = params.updatedAt;
   }
 }
+
+export type FineTuneCreateParams = {
+  batch_size?: number;
+  epoch?: number;
+  learning_rate?: number;
+  skip_logs_with_errors?: boolean;
+  modelName: string;
+  baseModel: string;
+};
+
+export type FineTuneWithTags = FineTuneCreateParams & {
+  tags: string[] | string;
+};
+
+export type FineTuneWithCustomDataset = FineTuneCreateParams & {
+  custom_dataset: string;
+};
+
+export type FineTuneOptions = FineTuneWithTags | FineTuneWithCustomDataset;
+
+export type LocationType = 'uk' | 'europe' | 'default';

@@ -389,6 +389,9 @@ export function tagsToString(
     : '';
 }
 
-export function validateFileContent(filePath: string): boolean {
+export function validateFileContent(
+  filePath: string,
+  skipLogsWithErrors: boolean
+): boolean {
   return true;
 }

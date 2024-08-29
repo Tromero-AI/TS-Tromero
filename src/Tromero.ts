@@ -28,13 +28,16 @@ import TromeroClient from './TromeroClient';
 import {
   TromeroData,
   TromeroDatasets,
+  TromeroFineTuningJob,
   TromeroModels,
 } from './fineTuning/TromeroFineTuning';
+import { LocationType } from './fineTuning/fineTuningModels';
 
 interface ClientOptions extends openai.ClientOptions {
   apiKey?: string;
   tromeroKey?: string;
   saveDataDefault?: boolean;
+  locationPreference?: 'uk' | 'europe' | 'default';
 }
 
 export default class Tromero extends openai.OpenAI {
@@ -42,18 +45,26 @@ export default class Tromero extends openai.OpenAI {
     tromeroKey,
     apiKey,
     saveDataDefault = false,
+    locationPreference,
     ...opts
   }: ClientOptions) {
     super({ apiKey, ...opts });
 
     this.saveDataDefault = saveDataDefault;
-    this.chat = new MockChat(this, this.saveDataDefault);
+    this.locationPreference = locationPreference;
+    this.chat = new MockChat(
+      this,
+      this.saveDataDefault,
+      this.locationPreference
+    );
     this.tromeroModels = undefined!;
     this.tromeroDatasets = undefined!;
+    this.tromeroFineTuningJob = undefined!;
     if (tromeroKey) {
       const tromeroClient = new TromeroClient({ tromeroKey });
       this.tromeroModels = new TromeroModels(tromeroKey);
       this.tromeroDatasets = new TromeroDatasets(tromeroKey);
+      this.tromeroFineTuningJob = new TromeroFineTuningJob(tromeroKey);
       this.chat.setClient(tromeroClient);
     } else if (tromeroKey && !apiKey) {
       console.warn(
@@ -73,15 +84,25 @@ export default class Tromero extends openai.OpenAI {
   chat: MockChat;
   tromeroModels: TromeroModels;
   tromeroDatasets: TromeroDatasets;
+  tromeroFineTuningJob: TromeroFineTuningJob;
   saveDataDefault: boolean;
+  locationPreference?: 'uk' | 'europe' | 'default';
 }
 
 class MockChat extends openai.OpenAI.Chat {
   completions: MockCompletions;
 
-  constructor(client: openai.OpenAI, saveDataDefault: boolean) {
+  constructor(
+    client: openai.OpenAI,
+    saveDataDefault: boolean,
+    locationPreference?: LocationType
+  ) {
     super(client);
-    this.completions = new MockCompletions(client, saveDataDefault);
+    this.completions = new MockCompletions(
+      client,
+      saveDataDefault,
+      locationPreference
+    );
   }
 
   /**
@@ -96,10 +117,16 @@ class MockChat extends openai.OpenAI.Chat {
 class MockCompletions extends openai.OpenAI.Chat.Completions {
   private tromeroClient?: TromeroClient;
   private saveDataDefault: boolean;
+  private locationPreference?: 'uk' | 'europe' | 'default';
 
-  constructor(client: openai.OpenAI, saveDataDefault: boolean) {
+  constructor(
+    client: openai.OpenAI,
+    saveDataDefault: boolean,
+    locationPreference?: LocationType
+  ) {
     super(client);
     this.saveDataDefault = saveDataDefault;
+    this.locationPreference = locationPreference;
   }
 
   setTromeroClient(client: TromeroClient) {
@@ -485,7 +512,8 @@ class MockCompletions extends openai.OpenAI.Chat.Completions {
 
       if (!modelData) {
         const { url, baseModel, error } = await this.tromeroClient!.getModelUrl(
-          model
+          model,
+          this.locationPreference
         );
         if (error) {
           throw new Error(error);
