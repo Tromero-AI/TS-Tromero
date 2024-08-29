@@ -37,7 +37,7 @@ interface ClientOptions extends openai.ClientOptions {
   apiKey?: string;
   tromeroKey?: string;
   saveDataDefault?: boolean;
-  locationPreference?: 'uk' | 'europe' | 'default';
+  locationPreference?: LocationType;
 }
 
 export default class Tromero extends openai.OpenAI {
@@ -57,14 +57,18 @@ export default class Tromero extends openai.OpenAI {
       this.saveDataDefault,
       this.locationPreference
     );
-    this.tromeroModels = undefined!;
-    this.tromeroDatasets = undefined!;
-    this.tromeroFineTuningJob = undefined!;
+    this.tromeroModels = tromeroKey
+      ? new TromeroModels(tromeroKey)
+      : undefined!;
+    this.tromeroDatasets = tromeroKey
+      ? new TromeroDatasets(tromeroKey)
+      : undefined!;
+    this.tromeroFineTuningJob = tromeroKey
+      ? new TromeroFineTuningJob(tromeroKey)
+      : undefined!;
+
     if (tromeroKey) {
       const tromeroClient = new TromeroClient({ tromeroKey });
-      this.tromeroModels = new TromeroModels(tromeroKey);
-      this.tromeroDatasets = new TromeroDatasets(tromeroKey);
-      this.tromeroFineTuningJob = new TromeroFineTuningJob(tromeroKey);
       this.chat.setClient(tromeroClient);
     } else if (tromeroKey && !apiKey) {
       console.warn(
@@ -86,7 +90,7 @@ export default class Tromero extends openai.OpenAI {
   tromeroDatasets: TromeroDatasets;
   tromeroFineTuningJob: TromeroFineTuningJob;
   saveDataDefault: boolean;
-  locationPreference?: 'uk' | 'europe' | 'default';
+  locationPreference?: LocationType;
 }
 
 class MockChat extends openai.OpenAI.Chat {
@@ -117,7 +121,7 @@ class MockChat extends openai.OpenAI.Chat {
 class MockCompletions extends openai.OpenAI.Chat.Completions {
   private tromeroClient?: TromeroClient;
   private saveDataDefault: boolean;
-  private locationPreference?: 'uk' | 'europe' | 'default';
+  private locationPreference?: LocationType;
 
   constructor(
     client: openai.OpenAI,

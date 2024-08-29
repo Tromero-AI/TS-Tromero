@@ -388,10 +388,3 @@ export function tagsToString(
     ? tags
     : '';
 }
-
-export function validateFileContent(
-  filePath: string,
-  skipLogsWithErrors: boolean
-): boolean {
-  return true;
-}

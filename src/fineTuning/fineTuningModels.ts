@@ -392,3 +392,10 @@ export type FineTuneWithCustomDataset = FineTuneCreateParams & {
 export type FineTuneOptions = FineTuneWithTags | FineTuneWithCustomDataset;
 
 export type LocationType = 'uk' | 'europe' | 'default';
+
+export type FilterType = {
+  from_date?: number;
+  to_date?: number;
+  models?: string[] | string;
+  tags?: string[] | string;
+};

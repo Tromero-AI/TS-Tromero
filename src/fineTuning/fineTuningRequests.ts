@@ -1,4 +1,5 @@
 import { dataURL, baseURL } from '../constants';
+import { FilterType } from './fineTuningModels';
 
 interface GenericRequestParams {
   method: 'GET' | 'POST' | 'PUT' | 'DELETE';
@@ -70,20 +71,25 @@ export async function uploadFileToUrl(
   }
 }
 
-export async function saveLogs(
-  customLogsFilename: string,
-  saveLogsWithTags: string[],
-  tromeroKey: string,
-  makeSyntheticVersion: boolean = false
-): Promise<any> {
+export async function saveLogs({
+  filename,
+  tags,
+  tromeroKey,
+  makeSyntheticVersion = false,
+}: {
+  filename: string;
+  tags: string[];
+  tromeroKey: string;
+  makeSyntheticVersion?: boolean;
+}): Promise<any> {
   const headers = new Headers({
     'Content-Type': 'application/json',
     'X-API-KEY': tromeroKey,
   });
   const data = {
-    customLogsFilename,
-    saveLogsWithTags,
-    makeSyntheticVersion,
+    custom_logs_filename: filename,
+    save_logs_with_tags: tags,
+    make_synthetic_version: makeSyntheticVersion,
   };
 
   const response = await fetch(`${baseURL}/custom_log_upload`, {
@@ -251,17 +257,29 @@ export async function getTags(tromeroKey: string): Promise<any> {
   return response.json();
 }
 
-export async function createDataset(
-  name: string,
-  description: string,
-  tags: string[],
-  tromeroKey: string
-): Promise<any> {
+export async function createDataset({
+  name,
+  description,
+  filters,
+  tromeroKey,
+}: {
+  name: string;
+  description?: string;
+
+  filters: FilterType;
+  tromeroKey: string;
+}): Promise<any> {
   const headers = new Headers({
     'Content-Type': 'application/json',
     'X-API-KEY': tromeroKey,
   });
-  const data = { name, description, tags };
+  if (typeof filters.models === 'string') {
+    filters.models = [filters.models];
+  }
+  if (typeof filters.tags === 'string') {
+    filters.tags = [filters.tags];
+  }
+  const data = { name, description, ...filters };
 
   const response = await fetch(`${baseURL}/datasets`, {
     method: 'POST',

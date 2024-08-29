@@ -13,7 +13,6 @@ import {
   modelEvaluationRequest,
 } from './fineTuningRequests';
 
-import { tagsToString, validateFileContent } from '../tromeroUtils';
 import {
   Model,
   TrainingMetrics,
@@ -22,8 +21,10 @@ import {
   FineTuneWithCustomDataset,
   FineTuneWithTags,
   FineTuneCreateParams,
+  FilterType,
 } from './fineTuningModels';
 import { v4 as uuidv4 } from 'uuid';
+import { validateFileContent } from './fineTuningUtils';
 /**
  * Sets the value of `val` to `defaultVal` if `val` is undefined.
  * @template T
@@ -51,19 +52,27 @@ export class TromeroDatasets {
 
   /**
    * Creates a dataset from uploading a file. The file will be validated before being uploaded. The tags are used to reference the dataset.
-   * @param {string} filePath - The path to the file.
-   * @param {string} name - The name of the dataset.
-   * @param {string} description - The description of the dataset.
-   * @param {string[] | string} tags - The tags for the dataset.
+   * @param {Object} options - An object containing the options for creating the dataset.
+   * @param {string} options.filePath - The path to the file.
+   * @param {string} options.name - The name of the dataset.
+   * @param {string} options.description - The description of the dataset.
+   * @param {string[] | string} options.tags - The tags to associate with the dataset.
+   * @param {boolean} options.skipLogsWithErrors - Whether to skip logs with errors during validation.
    * @returns {Promise<boolean | undefined>} - A promise that resolves to true if successful, undefined otherwise.
    */
-  async createFromFile(
-    filePath: string,
-    name: string,
-    description: string,
-    tags: string[] | string,
-    skipLogsWithErrors: boolean = true
-  ): Promise<boolean | undefined> {
+  async createFromFile({
+    filePath,
+    name,
+    description,
+    tags,
+    skipLogsWithErrors,
+  }: {
+    filePath: string;
+    name: string;
+    description: string;
+    tags: string[] | string;
+    skipLogsWithErrors: boolean;
+  }): Promise<boolean | undefined> {
     const idTag = `dataset_tag_${uuidv4()}`;
     if (typeof tags === 'string') {
       tags = [tags];
@@ -74,25 +83,44 @@ export class TromeroDatasets {
     }
     const { signedUrl, filename } = await getSignedUrl(this.tromeroKey);
     await uploadFileToUrl(signedUrl, filePath);
-    await saveLogs(filename, tags, this.tromeroKey);
+    await saveLogs({ filename, tags, tromeroKey: this.tromeroKey });
     console.log(`File uploaded successfully! Tags: ${tags}`);
-    await createDataset(name, description, [idTag], this.tromeroKey);
+    await createDataset({
+      name,
+      description,
+      filters: { tags: [idTag] },
+      tromeroKey: this.tromeroKey,
+    });
     return true;
   }
 
   /**
-   * Creates a dataset using tags.
-   * @param {string} name - The name of the dataset.
-   * @param {string} description - The description of the dataset.
-   * @param {string[]} tags - The tags for the dataset.
+   * Creates a dataset as a subset of the data based on the provided filters.
+   * @param {Object} options - An object containing the options for creating the dataset.
+   * @param {string} options.name - The name of the dataset.
+   * @param {string} options.description - The description of the dataset.
+   * @param {Object} options.filters - The filters to apply to the dataset.
+   * @param {string[] | string} options.filters.models - The models to filter the dataset by.
+   * @param {string[] | string} options.filters.tags - The tags to filter the dataset by.
+   * @param {number | null} options.filters.from_date - The start date to filter the dataset by, in Unix timestamp format.
+   * @param {number | null} options.filters.to_date - The end date to filter the dataset by, in Unix timestamp format.
    * @returns {Promise<boolean>} - A promise that resolves to true if successful.
    */
-  async createFromTags(
-    name: string,
-    description: string,
-    tags: string[]
-  ): Promise<boolean> {
-    await createDataset(name, description, tags, this.tromeroKey);
+  async createFromFilters({
+    name,
+    description,
+    filters,
+  }: {
+    name: string;
+    description: string;
+    filters: FilterType;
+  }): Promise<boolean> {
+    await createDataset({
+      name,
+      description,
+      filters,
+      tromeroKey: this.tromeroKey,
+    });
     return true;
   }
 
@@ -228,65 +256,6 @@ export class TromeroFineTuningJob {
     return response;
   }
 
-  // /**
-  //  * Creates a fine-tuning job.
-  //  *
-  //  * @param {Object} options - An object containing the options for creating the fine-tuning job. The object should include the following properties:
-  //  * @param {string} options.modelName - The name to assign to the fine-tuned model.
-  //  * @param {string} options.baseModel - The base model to fine-tune.
-  //  * @param {string[]} [options.tags] - An array of tags representing the dataset to fine-tune the model on. Required if `custom_dataset` is not provided. Must be tags that are already associated with data in Tromero.
-  //  * @param {string} [options.custom_dataset] - A custom dataset to fine-tune the model on. Required if `tags` is not provided. Must be the name of a dataset that is already associated with data in Tromero.
-  //  * @param {number} [options.batch_size] - The batch size to use for fine-tuning. For default value, leave empty.
-  //  * @param {number} [options.epoch] - The number of epochs to use for fine-tuning. For default value, leave empty.
-  //  * @param {number} [options.learning_rate] - The learning rate to use for fine-tuning. For default value, leave empty.
-  //  * @param {boolean} [options.skip_logs_with_errors=true] - Whether to skip logs with errors during the fine-tuning process. Defaults to true.
-  //  *
-  //  * @returns {Promise<any>} - A promise that resolves to the response of the fine-tuning job creation.
-  //  */
-  // async create({ ...options }: FineTuneOptions): Promise<any> {
-  //   const { modelName, baseModel, ...rest } = options;
-  //   const data: any = { modelName, baseModel };
-
-  //   if ('tags' in options) {
-  //     if (typeof options.tags === 'string') {
-  //       options.tags = [options.tags];
-  //     } else {
-  //       data.tags = options.tags;
-  //     }
-  //   } else if ('custom_dataset' in options) {
-  //     data.custom_dataset = options.custom_dataset;
-  //   } else if (!('tags' in options) && !('custom_dataset' in options)) {
-  //     throw new Error('Either tags or custom_dataset must be provided.');
-  //   }
-
-  //   if ('batch_size' in rest) {
-  //     data.batch_size = rest.batch_size;
-  //   } else {
-  //     data.batch_size = '';
-  //   }
-
-  //   if ('epoch' in rest) {
-  //     data.epoch = rest.epoch;
-  //   } else {
-  //     data.epoch = '';
-  //   }
-
-  //   if ('learning_rate' in rest) {
-  //     data.learning_rate = rest.learning_rate;
-  //   } else {
-  //     data.learning_rate = '';
-  //   }
-
-  //   if ('skip_logs_with_errors' in rest) {
-  //     data.skip_logs_with_errors = rest.skip_logs_with_errors;
-  //   } else {
-  //     data.skip_logs_with_errors = true;
-  //   }
-
-  //   const response = await createFineTuningJob(data, this.tromeroKey);
-  //   return response;
-  // }
-
   /**
    * Retrieves the training metrics for a model.
    * @param {string} modelName - The name of the model.
@@ -414,8 +383,13 @@ export class TromeroData {
       return;
     }
     const { signedUrl, filename } = await getSignedUrl(this.tromeroKey);
-    uploadFileToUrl(signedUrl, filePath);
-    saveLogs(filename, tags, this.tromeroKey, makeSyntheticVersion);
+    await uploadFileToUrl(signedUrl, filePath);
+    await saveLogs({
+      filename,
+      tags,
+      tromeroKey: this.tromeroKey,
+      makeSyntheticVersion,
+    });
     console.log(`File uploaded successfully! Tags: ${tags}`);
     return true;
   }
