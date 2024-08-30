@@ -3,6 +3,7 @@ import {
   ChatCompletionMessageToolCall,
   ChatCompletionTool,
 } from 'openai/resources';
+import { TromeroChatBaseModels } from './tromero/baseModels';
 
 export interface TromeroOptions {
   tromeroKey: string;
@@ -57,12 +58,16 @@ export class Choice {
 export class MockChatCompletion {
   choices: Choice[];
   id: string;
-  model: string;
+  model: (string & {}) | TromeroChatBaseModels;
   created: number;
   usage: any;
   object: 'chat.completion';
 
-  constructor(choices: Choice[], model: string = '', usage = {}) {
+  constructor(
+    choices: Choice[],
+    model: (string & {}) | TromeroChatBaseModels = '',
+    usage = {}
+  ) {
     this.choices = choices;
     this.id = '';
     this.object = 'chat.completion' as const;
@@ -124,7 +129,7 @@ export interface TromeroCompletionParamsBase {
   /**
    * Name of the model to use.
    */
-  model: string;
+  model: (string & {}) | TromeroChatBaseModels;
 
   /**
    * A list of messages comprising the conversation so far.
@@ -312,6 +317,41 @@ export interface TromeroCompletionParamsBase {
    * (i.e., no truncation).
    */
   truncate_prompt_tokens?: number;
+
+  response_format?: ResponseFormatJSONObject | ResponseFormatJSONSchema;
+}
+
+interface ResponseFormatJSONObject {
+  /**
+   * The type of response format being defined: `json_object`
+   */
+  type: 'json_object';
+}
+
+interface ResponseFormatJSONSchema {
+  /**
+   * The name of the response format. Must be a-z, A-Z, 0-9, or contain underscores
+   * and dashes, with a maximum length of 64.
+   */
+  name: string;
+
+  /**
+   * A description of what the response format is for, used by the model to determine
+   * how to respond in the format.
+   */
+  description?: string;
+
+  /**
+   * The schema for the response format, described as a JSON Schema object.
+   */
+  schema?: Record<string, unknown>;
+
+  /**
+   * Whether to enable strict schema adherence when generating the output. If set to
+   * true, the model will always follow the exact schema defined in the `schema`
+   * field. Only a subset of JSON Schema is supported when `strict` is `true`.
+   */
+  strict?: boolean | null;
 }
 
 interface ChatCompletionChunkStreamParams {

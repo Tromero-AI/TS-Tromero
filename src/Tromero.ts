@@ -57,20 +57,21 @@ export default class Tromero extends openai.OpenAI {
       this.saveDataDefault,
       this.locationPreference
     );
-    this.tromeroModels = tromeroKey
-      ? new TromeroModels(tromeroKey)
-      : undefined!;
-    this.tromeroDatasets = tromeroKey
-      ? new TromeroDatasets(tromeroKey)
-      : undefined!;
-    this.tromeroFineTuningJob = tromeroKey
-      ? new TromeroFineTuningJob(tromeroKey)
-      : undefined!;
+
+    this.tromeroDatasets = undefined!;
+    this.tromeroModels = undefined!;
+    this.tromeroFineTuningJob = undefined!;
+    this.tromeroData = undefined!;
 
     if (tromeroKey) {
+      // this.tromeroModels = new TromeroModels(tromeroKey);
+      // this.tromeroDatasets = new TromeroDatasets(tromeroKey);
+      // this.tromeroFineTuningJob = new TromeroFineTuningJob(tromeroKey);
+      // this.tromeroData = new TromeroData(tromeroKey);
       const tromeroClient = new TromeroClient({ tromeroKey });
       this.chat.setClient(tromeroClient);
-    } else if (tromeroKey && !apiKey) {
+    }
+    if (tromeroKey && !apiKey) {
       console.warn(
         "You're using the Tromero client without an OpenAI API key. You won't be able to use OpenAI models or other OpenAI features."
       );
@@ -91,6 +92,7 @@ export default class Tromero extends openai.OpenAI {
   tromeroFineTuningJob: TromeroFineTuningJob;
   saveDataDefault: boolean;
   locationPreference?: LocationType;
+  tromeroData: TromeroData;
 }
 
 class MockChat extends openai.OpenAI.Chat {
@@ -515,16 +517,14 @@ class MockCompletions extends openai.OpenAI.Chat.Completions {
         this.tromeroClient!.modelData[model];
 
       if (!modelData) {
-        const { url, baseModel, error } = await this.tromeroClient!.getModelUrl(
-          model,
-          this.locationPreference
-        );
+        const { url, base_model, error } =
+          await this.tromeroClient!.getModelUrl(model, this.locationPreference);
         if (error) {
           throw new Error(error);
         }
         modelData = {
           url,
-          adapter_name: baseModel ? 'NO_ADAPTER' : model,
+          adapter_name: base_model ? 'NO_ADAPTER' : model,
         };
         this.tromeroClient!.modelData[model] = modelData;
       }
