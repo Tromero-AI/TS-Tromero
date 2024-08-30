@@ -7,18 +7,19 @@ import {
   TromeroCompletionParams,
   TromeroOptions,
 } from './tromeroUtils';
+import { baseURL, dataURL } from './constants';
+import { LocationType } from './fineTuning/fineTuningModels';
 
+/**
+ *  TromeroClient class that interacts with the Tromero API
+ */
 export default class TromeroClient {
   private dataURL: string;
   private baseURL: string;
   private apiKey: string;
   modelData: ModelData;
 
-  constructor({
-    tromeroKey,
-    baseURL = 'https://midyear-grid-402910.lm.r.appspot.com/tailor/v1',
-    dataURL = `${baseURL}/data`,
-  }: TromeroOptions) {
+  constructor({ tromeroKey }: TromeroOptions) {
     this.apiKey = tromeroKey;
     this.dataURL = dataURL;
     this.baseURL = baseURL;
@@ -67,8 +68,18 @@ export default class TromeroClient {
     });
   }
 
-  async getModelUrl(modelName: string): Promise<ApiResponse> {
-    return this.fetchData(`${this.baseURL}/model/${modelName}/url`, {
+  async getModelUrl(
+    modelName: string,
+    locationPreference?: LocationType
+  ): Promise<ApiResponse> {
+    const url =
+      locationPreference && locationPreference !== 'default'
+        ? `${
+            this.baseURL
+          }/model/${modelName}/url?location_preference=${locationPreference.toLowerCase()}`
+        : `${this.baseURL}/model/${modelName}/url`;
+
+    return this.fetchData(url, {
       method: 'GET',
       headers: {
         'X-API-KEY': this.apiKey,

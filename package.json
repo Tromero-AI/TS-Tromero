@@ -1,6 +1,6 @@
 {
   "name": "tromero",
-  "version": "1.0.3",
+  "version": "1.2.0",
   "description": "NPM package to conveniently integrate the Tromero service with your Node application. Fully typed.",
   "module": "./dist/index.mjs",
   "exports": {
@@ -36,6 +36,7 @@
   "license": "MIT",
   "devDependencies": {
     "@types/jest": "^29.5.12",
+    "@types/uuid": "^10.0.0",
     "jest": "^29.7.0",
     "ts-jest": "^29.1.2",
     "ts-node": "^10.9.2",
@@ -43,6 +44,7 @@
     "typescript": "^5.4.5"
   },
   "dependencies": {
-    "openai": "^4.40.0"
+    "openai": "^4.40.0",
+    "uuid": "^10.0.0"
   }
 }

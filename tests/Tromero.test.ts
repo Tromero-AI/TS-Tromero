@@ -1,5 +1,5 @@
 import Tromero from '../src/Tromero';
-import TromeroClient from '../src/Tromero_Client';
+import TromeroClient from '../src/TromeroClient';
 import { MockStream } from '../src/openai/streaming';
 import * as tromeroUtils from '../src/tromeroUtils';
 import type {
@@ -9,7 +9,7 @@ import type {
 import { Stream } from 'openai/streaming';
 
 jest.mock('openai');
-jest.mock('../src/Tromero_Client');
+jest.mock('../src/TromeroClient');
 jest.mock('../src/openai/streaming');
 jest.mock('../src/tromeroUtils');
 jest.mock('../src/openai/mergeChunks');

@@ -33,12 +33,31 @@ import Tromero from 'tromero';
 
 ### Initializing the Client
 
-Initialize the `Tromero` client using your API keys, which should be stored securely and preferably as environment variables:
+Initialize the `Tromero` client using your API key, which should be stored securely and preferably as an environment variable:
 
 ```javascript
 const client = new Tromero({
-  apiKey: process.env.OPENAI_KEY, // optional if you are using OpenAI models
-  tromeroKey: process.env.TROMERO_KEY, // optional if you are using Tromero models
+  tromeroKey: process.env.TROMERO_KEY,
+});
+```
+
+If you have a preference for the location of the models you want to use, you can specify it in the client initialization using the `locationPreference` parameter.
+
+```javascript
+const client = new Tromero({
+  tromeroKey: process.env.TROMERO_KEY,
+  locationPreference: 'uk',
+});
+```
+
+There are different models available in different regions, so by selecting a region you may be limiting the choice of base models. The client parameter for location takes priority over the settings on the Tromero platform.
+
+If you would like to use OpenAI models, you can also provide your OpenAI API key:
+
+```javascript
+const client = new Tromero({
+  apiKey: process.env.OPENAI_KEY,
+  tromeroKey: process.env.TROMERO_KEY,
 });
 ```
 
@@ -67,6 +86,20 @@ const completion = await client.chat.completions.create({
   ],
 });
 ```
+
+Even for base models:
+
+```javascript
+const completion = await client.chat.completions.create({
+  model: 'llama-3.1-70b-instruct', // any base model hosted on Tromero.
+  messages: [
+    { role: 'system', content: 'You are a friendly chatbot.' },
+    { role: 'user', content: `${userPrompt}` },
+  ],
+});
+```
+
+For a full list of supported base models, please visit our [website](https://www.tromero.ai/models).
 
 #### Streaming
 
@@ -128,7 +161,17 @@ const completion = await client.chat.completions.create({
 
 ### Saving Data for Fine-Tuning
 
-To save data for future fine-tuning with Tromero, you can enable the `saveData` parameter in your API calls. This allows you to collect and store the data generated during interactions with your models, which can be used to improve and refine your models over time.
+To save data for future fine-tuning with Tromero, you can enable the `saveDataDefault` optional parameter when you initiate the client. This allows you to collect and store the data generated during every interaction with our system, which can be used to improve and refine your models over time.
+
+```javascript
+const client = new Tromero({
+  apiKey: process.env.OPENAI_KEY,
+  tromeroKey: process.env.TROMERO_KEY,
+  saveDataDefault: true,
+});
+```
+
+Alternatively, you can enable the `saveData` parameter in your API calls. This allows you to collect and store the data generated during specific interactions, rather than for all interactions. Setting `saveData` overrides the default behavior set in the client.
 
 ```javascript
 const completion = await client.chat.completions.create({
@@ -203,14 +246,16 @@ Here’s a complete example of using the Tromero API in Node.js to generate a ch
 import Tromero from 'tromero';
 
 const client = new Tromero({
-  apiKey: process.env.OPENAI_KEY,
   tromeroKey: process.env.TROMERO_KEY,
+  apiKey: process.env.OPENAI_KEY, // to use OpenAI model as fallback
+  saveDataDefault: true,
+  locationPreference: 'uk',
 });
 
 const input = 'How are you doing today?';
 
 const completion = await client.chat.completions.create({
-  model: 'chatbot-202408', // or an OpenAI model
+  model: 'chatbot-202408',
   messages: [
     { role: 'system', content: 'You are a friendly chatbot.' },
     { role: 'user', content: input },
@@ -222,7 +267,6 @@ const completion = await client.chat.completions.create({
   stream: true,
 
   // Tromero specific parameters
-  saveData: true,
   tags: ['version-1', 'feedback'],
   fallbackModel: 'gpt-4o-mini',
 });
@@ -233,3 +277,5 @@ const completion = await client.chat.completions.create({
 In this guide, we covered the key functionalities of the Tromero package in Node.js, including JSON formatting, streaming, fallback models, data saving, and tagging. By following these instructions, you can effectively utilize the Tromero API to build powerful AI applications and services.
 
 This package is fully typed and supports TypeScript out of the box.
+
+If you find any issues or have any questions, please feel free to reach out by creating an issue on our GitHub repository.
