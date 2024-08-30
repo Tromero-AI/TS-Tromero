@@ -318,41 +318,41 @@ export interface TromeroCompletionParamsBase {
    */
   truncate_prompt_tokens?: number;
 
-  response_format?: ResponseFormatJSONObject | ResponseFormatJSONSchema;
+  // response_format?: ResponseFormatJSONObject | ResponseFormatJSONSchema;
 }
 
-interface ResponseFormatJSONObject {
-  /**
-   * The type of response format being defined: `json_object`
-   */
-  type: 'json_object';
-}
+// interface ResponseFormatJSONObject {
+//   /**
+//    * The type of response format being defined: `json_object`
+//    */
+//   type: 'json_object';
+// }
 
-interface ResponseFormatJSONSchema {
-  /**
-   * The name of the response format. Must be a-z, A-Z, 0-9, or contain underscores
-   * and dashes, with a maximum length of 64.
-   */
-  name: string;
+// interface ResponseFormatJSONSchema {
+//   /**
+//    * The name of the response format. Must be a-z, A-Z, 0-9, or contain underscores
+//    * and dashes, with a maximum length of 64.
+//    */
+//   name: string;
 
-  /**
-   * A description of what the response format is for, used by the model to determine
-   * how to respond in the format.
-   */
-  description?: string;
+//   /**
+//    * A description of what the response format is for, used by the model to determine
+//    * how to respond in the format.
+//    */
+//   description?: string;
 
-  /**
-   * The schema for the response format, described as a JSON Schema object.
-   */
-  schema?: Record<string, unknown>;
+//   /**
+//    * The schema for the response format, described as a JSON Schema object.
+//    */
+//   schema?: Record<string, unknown>;
 
-  /**
-   * Whether to enable strict schema adherence when generating the output. If set to
-   * true, the model will always follow the exact schema defined in the `schema`
-   * field. Only a subset of JSON Schema is supported when `strict` is `true`.
-   */
-  strict?: boolean | null;
-}
+//   /**
+//    * Whether to enable strict schema adherence when generating the output. If set to
+//    * true, the model will always follow the exact schema defined in the `schema`
+//    * field. Only a subset of JSON Schema is supported when `strict` is `true`.
+//    */
+//   strict?: boolean | null;
+// }
 
 interface ChatCompletionChunkStreamParams {
   id?: string;
@@ -426,5 +426,7 @@ export function tagsToString(
     ? tags.join(', ')
     : typeof tags === 'string'
     ? tags
+    : typeof tags === 'number'
+    ? tags.toString()
     : '';
 }
