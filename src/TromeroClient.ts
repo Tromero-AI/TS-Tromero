@@ -8,6 +8,7 @@ import {
   TromeroOptions,
 } from './tromeroUtils';
 import { baseURL, dataURL } from './constants';
+import { LocationType } from './fineTuning/fineTuningModels';
 
 /**
  *  TromeroClient class that interacts with the Tromero API
@@ -69,13 +70,14 @@ export default class TromeroClient {
 
   async getModelUrl(
     modelName: string,
-    locationPreference?: string
+    locationPreference?: LocationType
   ): Promise<ApiResponse> {
-    const url = locationPreference
-      ? `${
-          this.baseURL
-        }/model/${modelName}/url?location_preference=${locationPreference.toLowerCase()}`
-      : `${this.baseURL}/model/${modelName}/url`;
+    const url =
+      locationPreference && locationPreference !== 'default'
+        ? `${
+            this.baseURL
+          }/model/${modelName}/url?location_preference=${locationPreference.toLowerCase()}`
+        : `${this.baseURL}/model/${modelName}/url`;
 
     return this.fetchData(url, {
       method: 'GET',
