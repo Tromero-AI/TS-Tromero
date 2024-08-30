@@ -40,7 +40,8 @@ interface ClientOptions extends openai.ClientOptions {
   locationPreference?: LocationType;
 }
 
-export default class Tromero extends openai.OpenAI {
+// export default class Tromero extends openai.OpenAI {
+export default class Tromero {
   constructor({
     tromeroKey,
     apiKey,
@@ -48,21 +49,25 @@ export default class Tromero extends openai.OpenAI {
     locationPreference,
     ...opts
   }: ClientOptions) {
-    super({ apiKey, ...opts });
-
     this.saveDataDefault = saveDataDefault;
     this.locationPreference = locationPreference;
-    this.chat = new MockChat(
-      this,
-      this.saveDataDefault,
-      this.locationPreference
-    );
 
     this.tromeroDatasets = undefined!;
     this.tromeroModels = undefined!;
     this.tromeroFineTuningJob = undefined!;
     this.tromeroData = undefined!;
 
+    if (apiKey) {
+      this.openAIClient = new openai.OpenAI({ apiKey, ...opts });
+    } else {
+      this.openAIClient = null!;
+    }
+
+    this.chat = new MockChat(
+      this.openAIClient,
+      this.saveDataDefault,
+      this.locationPreference
+    );
     if (tromeroKey) {
       // this.tromeroModels = new TromeroModels(tromeroKey);
       // this.tromeroDatasets = new TromeroDatasets(tromeroKey);
@@ -93,6 +98,7 @@ export default class Tromero extends openai.OpenAI {
   saveDataDefault: boolean;
   locationPreference?: LocationType;
   tromeroData: TromeroData;
+  openAIClient: openai.OpenAI | null;
 }
 
 class MockChat extends openai.OpenAI.Chat {
@@ -124,6 +130,7 @@ class MockCompletions extends openai.OpenAI.Chat.Completions {
   private tromeroClient?: TromeroClient;
   private saveDataDefault: boolean;
   private locationPreference?: LocationType;
+  private hasOpenAIApiKey: boolean;
 
   constructor(
     client: openai.OpenAI,
@@ -133,13 +140,20 @@ class MockCompletions extends openai.OpenAI.Chat.Completions {
     super(client);
     this.saveDataDefault = saveDataDefault;
     this.locationPreference = locationPreference;
+    this.hasOpenAIApiKey = !!client;
   }
 
   setTromeroClient(client: TromeroClient) {
     this.tromeroClient = client;
   }
 
-  private async isModelFromOpenAI(model: string): Promise<boolean> {
+  private async isModelFromOpenAI(
+    model: string,
+    hasOpenAIApiKey: boolean
+  ): Promise<boolean> {
+    if (!hasOpenAIApiKey) {
+      return false;
+    }
     const data = await this._client.models.list();
 
     const models: string[] = data.data
@@ -384,7 +398,10 @@ class MockCompletions extends openai.OpenAI.Chat.Completions {
     | undefined
     | Error
   > {
-    const isOpenAIModel = await this.isModelFromOpenAI(body.model);
+    const isOpenAIModel = await this.isModelFromOpenAI(
+      body.model,
+      this.hasOpenAIApiKey
+    );
     const [newKwargs, settings] = await this.formatParams(body, isOpenAIModel);
     newKwargs.messages = this.formatMessages(
       newKwargs.messages as ChatCompletionMessageParam[]
@@ -520,7 +537,9 @@ class MockCompletions extends openai.OpenAI.Chat.Completions {
         const { url, base_model, error } =
           await this.tromeroClient!.getModelUrl(model, this.locationPreference);
         if (error) {
-          throw new Error(error);
+          throw new Error(
+            "Unable to locate a model with the specified name. Please double-check the model name for accuracy. If you are attempting to use a base model, ensure the name is correct. If you're using a model from OpenAI, make sure your OpenAI API key is properly set."
+          );
         }
         modelData = {
           url,
