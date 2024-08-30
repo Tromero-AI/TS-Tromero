@@ -277,3 +277,5 @@ const completion = await client.chat.completions.create({
 In this guide, we covered the key functionalities of the Tromero package in Node.js, including JSON formatting, streaming, fallback models, data saving, and tagging. By following these instructions, you can effectively utilize the Tromero API to build powerful AI applications and services.
 
 This package is fully typed and supports TypeScript out of the box.
+
+If you find any issues or have any questions, please feel free to reach out by creating an issue on our GitHub repository.
