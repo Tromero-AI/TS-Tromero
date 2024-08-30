@@ -373,7 +373,7 @@ class MockCompletions extends openai.OpenAI.Chat.Completions {
   }
 
   async handleChatCompletion(
-    body: ChatCompletionCreateParams & TromeroCompletionParams & TromeroArgs,
+    body: TromeroCompletionParams & ChatCompletionCreateParams & TromeroArgs,
     options?: Core.RequestOptions
   ): Promise<
     | ChatCompletion

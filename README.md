@@ -37,8 +37,8 @@ Initialize the `Tromero` client using your API keys, which should be stored secu
 
 ```javascript
 const client = new Tromero({
-  apiKey: process.env.OPENAI_KEY, // optional if you are using OpenAI models
-  tromeroKey: process.env.TROMERO_KEY, // optional if you are using Tromero models
+  apiKey: process.env.OPENAI_KEY, // optional - if you are using OpenAI models
+  tromeroKey: process.env.TROMERO_KEY, // optional - if you are using Tromero models and features
 });
 ```
 
@@ -67,6 +67,20 @@ const completion = await client.chat.completions.create({
   ],
 });
 ```
+
+Even for base models:
+
+```javascript
+const completion = await client.chat.completions.create({
+  model: 'llama-3.1-70b-instruct', // an base model hosted on Tromero.
+  messages: [
+    { role: 'system', content: 'You are a friendly chatbot.' },
+    { role: 'user', content: `${userPrompt}` },
+  ],
+});
+```
+
+For a full list of supported base models, please visit our [website](https://www.tromero.ai/models).
 
 #### Streaming
 
@@ -128,7 +142,17 @@ const completion = await client.chat.completions.create({
 
 ### Saving Data for Fine-Tuning
 
-To save data for future fine-tuning with Tromero, you can enable the `saveData` parameter in your API calls. This allows you to collect and store the data generated during interactions with your models, which can be used to improve and refine your models over time.
+To save data for future fine-tuning with Tromero, you can enable the `saveDataDefault` optional parameter when you initiate the client. This allows you to collect and store the data generated during every interaction with our system, which can be used to improve and refine your models over time.
+
+```javascript
+const client = new Tromero({
+  apiKey: process.env.OPENAI_KEY,
+  tromeroKey: process.env.TROMERO_KEY,
+  saveDataDefault: true,
+});
+```
+
+Alternatively, you can enable the `saveData` parameter in your API calls. This allows you to collect and store the data generated during specific interactions, rather than for all interactions. Setting `saveData` overrides the default behavior set in the client.
 
 ```javascript
 const completion = await client.chat.completions.create({
@@ -203,7 +227,7 @@ Here’s a complete example of using the Tromero API in Node.js to generate a ch
 import Tromero from 'tromero';
 
 const client = new Tromero({
-  apiKey: process.env.OPENAI_KEY,
+  apiKey: process.env.OPENAI_KEY, // for the fallback model
   tromeroKey: process.env.TROMERO_KEY,
 });
 
