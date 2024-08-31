@@ -240,6 +240,10 @@ class MockCompletions extends openai.OpenAI.Chat.Completions {
       'truncate_prompt_tokens',
       'stream',
       'tools',
+      'n',
+      'min_p',
+      'response_format',
+      'guided_schema',
     ]);
 
     const validExtraKeys = new Set([
