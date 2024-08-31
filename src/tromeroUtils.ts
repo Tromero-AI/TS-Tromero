@@ -428,5 +428,7 @@ export function tagsToString(
     ? tags.join(', ')
     : typeof tags === 'string'
     ? tags
+    : typeof tags === 'number'
+    ? tags.toString()
     : '';
 }
