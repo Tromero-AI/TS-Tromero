@@ -44,7 +44,7 @@ describe('Tromero Utils', () => {
       const model = 'mock-model';
       const usage = { key: 'value' };
       const response = mockOpenAIFormat(message, model, usage);
-      expect(response.choices[0].message.content).toBe('Mock message');
+      expect(response.choices[0]?.message.content).toBe('Mock message');
       expect(response.model).toBe('mock-model');
       expect(response.usage).toEqual(usage);
     });
@@ -58,7 +58,7 @@ describe('Tromero Utils', () => {
       };
       const chunkStream = new ChatCompletionChunkStreamClass(params);
       expect(chunkStream.model).toBe('test-model');
-      expect(chunkStream.choices[0].delta.content).toBe('Stream response');
+      expect(chunkStream.choices[0]?.delta.content).toBe('Stream response');
     });
 
     test('should return choices', () => {
@@ -69,7 +69,7 @@ describe('Tromero Utils', () => {
       const chunkStream = new ChatCompletionChunkStreamClass(params);
       const choices = chunkStream.getChoices();
       expect(choices).toHaveLength(1);
-      expect(choices[0].delta.content).toBe('Stream response');
+      expect(choices[0]?.delta.content).toBe('Stream response');
     });
   });
 });

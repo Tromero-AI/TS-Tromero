@@ -23,7 +23,7 @@ export class MockStream extends Stream<ChatCompletionChunk> {
     this.saveData = saveData;
   }
 
-  async *[Symbol.asyncIterator](): AsyncIterator<
+  override async *[Symbol.asyncIterator](): AsyncIterator<
     ChatCompletionChunk,
     any,
     undefined

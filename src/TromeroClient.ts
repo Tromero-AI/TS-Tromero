@@ -1,14 +1,15 @@
 import { ChatCompletionMessageParam } from 'openai/resources';
 import {
-  ApiResponse,
+  type ApiResponse,
   ChatCompletionChunkStreamClass,
-  Message,
-  ModelData,
-  TromeroCompletionParams,
-  TromeroOptions,
+  type Message,
+  type ModelData,
+  type TromeroCompletionParams,
+  type TromeroOptions,
 } from './tromeroUtils';
 import { baseURL, dataURL } from './constants';
-import { LocationType } from './fineTuning/fineTuningModels';
+import { type LocationType } from './fineTuning/fineTuningModels';
+import { ReadableStream } from 'openai/_shims/index';
 
 /**
  *  TromeroClient class that interacts with the Tromero API
@@ -32,7 +33,7 @@ export default class TromeroClient {
   ): Promise<ApiResponse> {
     try {
       const response = await fetch(url, options);
-      const data = await response.json();
+      const data = (await response.json()) as ApiResponse;
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
@@ -142,7 +143,7 @@ export default class TromeroClient {
         throw new Error('Response body is not a readable stream');
       }
 
-      const reader = response?.body?.getReader();
+      const reader = response?.body?.getReader()!;
       let fullText = '';
 
       try {

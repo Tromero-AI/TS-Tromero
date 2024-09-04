@@ -1,5 +1,5 @@
 import { dataURL, baseURL } from '../constants';
-import { FilterType } from './fineTuningModels';
+import { type FilterType } from './fineTuningModels';
 
 interface GenericRequestParams {
   method: 'GET' | 'POST' | 'PUT' | 'DELETE';
@@ -36,9 +36,14 @@ async function genericRequest({
   return response.json();
 }
 
+interface GetSignedUrlResponse {
+  signedUrl: string;
+  filename: string;
+}
+
 export async function getSignedUrl(
   authToken: string
-): Promise<{ signedUrl: string; filename: string }> {
+): Promise<GetSignedUrlResponse> {
   const headers = new Headers({
     'X-API-KEY': authToken,
     'Content-Type': 'application/json',
@@ -52,7 +57,7 @@ export async function getSignedUrl(
     throw new Error(`HTTP error! status: ${response.status}`);
   }
 
-  const data = await response.json();
+  const data = (await response.json()) as GetSignedUrlResponse;
   return { signedUrl: data.signedUrl, filename: data.filename };
 }
 
@@ -153,7 +158,7 @@ export async function getModels(
     throw new Error(`HTTP error! status: ${response.status}`);
   }
 
-  return response.json();
+  return (await response.json()) as GetModelsResponse;
 }
 
 export async function getModelTrainingInfo(
@@ -197,7 +202,7 @@ export async function deployModelRequest(
     );
   }
 
-  return response.json();
+  return (await response.json()) as DeployResponse;
 }
 
 export async function getModelRequest(

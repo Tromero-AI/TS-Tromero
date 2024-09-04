@@ -17,11 +17,11 @@ import {
   Model,
   TrainingMetrics,
   Dataset,
-  FineTuneOptions,
-  FineTuneWithCustomDataset,
-  FineTuneWithTags,
-  FineTuneCreateParams,
-  FilterType,
+  type FineTuneOptions,
+  type FineTuneWithCustomDataset,
+  type FineTuneWithTags,
+  type FineTuneCreateParams,
+  type FilterType,
 } from './fineTuningModels';
 import { v4 as uuidv4 } from 'uuid';
 import { validateFileContent } from './fineTuningUtils';

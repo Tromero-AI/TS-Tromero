@@ -1,9 +1,9 @@
 import {
-  ChatCompletionMessageParam,
-  ChatCompletionMessageToolCall,
-  ChatCompletionTool,
+  type ChatCompletionMessageParam,
+  type ChatCompletionMessageToolCall,
+  type ChatCompletionTool,
 } from 'openai/resources';
-import { TromeroChatBaseModels } from './tromero/baseModels';
+import { type TromeroChatBaseModels } from './tromero/baseModels';
 
 export interface TromeroOptions {
   tromeroKey: string;
@@ -425,8 +425,8 @@ export function tagsToString(
   return Array.isArray(tags)
     ? tags.join(', ')
     : typeof tags === 'string'
-    ? tags
-    : typeof tags === 'number'
-    ? tags.toString()
-    : '';
+      ? tags
+      : typeof tags === 'number'
+        ? tags.toString()
+        : '';
 }

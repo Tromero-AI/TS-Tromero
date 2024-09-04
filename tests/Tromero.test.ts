@@ -67,7 +67,7 @@ describe('Tromero', () => {
         tags: ['test'],
       })
     );
-    expect(response.choices[0].message.content).toBe('Hello');
+    expect(response.choices[0]?.message.content).toBe('Hello');
   });
 
   test('should handle stream response', async () => {

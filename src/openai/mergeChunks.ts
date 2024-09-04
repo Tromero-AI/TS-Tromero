@@ -44,7 +44,7 @@ export default function mergeChunks(
               ({
                 ...tc,
                 id: tc.id ?? '',
-              } as ChatCompletionMessageToolCall)
+              }) as ChatCompletionMessageToolCall
           )
         );
       }

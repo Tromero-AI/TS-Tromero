@@ -1,4 +1,4 @@
-import * as openai from 'openai';
+import { OpenAI, type ClientOptions } from 'openai';
 import * as Core from 'openai/core';
 import type { Stream } from 'openai/streaming';
 import type {
@@ -15,12 +15,12 @@ import {
   ChatCompletionChunkStreamClass,
   mockOpenAIFormat,
   MockChatCompletion,
-  TromeroArgs,
-  ModelDataDetails,
-  TromeroCompletionParamsBase,
-  TromeroCompletionParams,
-  TromeroCompletionParamsNonStream,
-  TromeroCompletionParamsStream,
+  type TromeroArgs,
+  type ModelDataDetails,
+  type TromeroCompletionParamsBase,
+  type TromeroCompletionParams,
+  type TromeroCompletionParamsNonStream,
+  type TromeroCompletionParamsStream,
   tagsToString,
 } from './tromeroUtils';
 import { MockStream } from './openai/streaming';
@@ -31,14 +31,13 @@ import {
   TromeroFineTuningJob,
   TromeroModels,
 } from './fineTuning/TromeroFineTuning';
-import { LocationType } from './fineTuning/fineTuningModels';
+import type { LocationType } from './fineTuning/fineTuningModels';
 
-interface ClientOptions extends openai.ClientOptions {
+interface TromeroClientOptions extends ClientOptions {
   apiKey?: string;
   tromeroKey?: string;
   saveDataDefault?: boolean;
   locationPreference?: LocationType;
-  location?: LocationType;
 }
 
 export default class Tromero {
@@ -47,27 +46,17 @@ export default class Tromero {
     apiKey,
     saveDataDefault = false,
     locationPreference,
-    location,
     ...opts
-  }: ClientOptions) {
+  }: TromeroClientOptions) {
     this.saveDataDefault = saveDataDefault;
-
-    if (location) {
-      this.locationPreference = location;
-    } else if (locationPreference) {
-      this.locationPreference = locationPreference;
-    }
+    this.locationPreference = locationPreference;
 
     this.tromeroDatasets = undefined!;
     this.tromeroModels = undefined!;
     this.tromeroFineTuningJob = undefined!;
     this.tromeroData = undefined!;
 
-    if (apiKey) {
-      this.openAIClient = new openai.OpenAI({ apiKey, ...opts });
-    } else {
-      this.openAIClient = null!;
-    }
+    this.openAIClient = new OpenAI({ apiKey, ...opts });
 
     this.chat = new MockChat(
       this.openAIClient,
@@ -104,14 +93,14 @@ export default class Tromero {
   tromeroData: TromeroData;
   private saveDataDefault: boolean;
   private locationPreference?: LocationType;
-  private openAIClient: openai.OpenAI | null;
+  private openAIClient: OpenAI;
 }
 
-class MockChat extends openai.OpenAI.Chat {
-  completions: MockCompletions;
+class MockChat extends OpenAI.Chat {
+  override completions: MockCompletions;
 
   constructor(
-    client: openai.OpenAI,
+    client: OpenAI,
     saveDataDefault: boolean,
     locationPreference?: LocationType
   ) {
@@ -132,14 +121,14 @@ class MockChat extends openai.OpenAI.Chat {
   }
 }
 
-class MockCompletions extends openai.OpenAI.Chat.Completions {
+class MockCompletions extends OpenAI.Chat.Completions {
   private tromeroClient?: TromeroClient;
   private saveDataDefault: boolean;
   private locationPreference?: LocationType;
   private hasOpenAIApiKey: boolean;
 
   constructor(
-    client: openai.OpenAI,
+    client: OpenAI,
     saveDataDefault: boolean,
     locationPreference?: LocationType
   ) {
@@ -359,25 +348,25 @@ class MockCompletions extends openai.OpenAI.Chat.Completions {
     return resp;
   }
 
-  create(
+  override create(
     body: ChatCompletionCreateParamsNonStreaming &
       TromeroCompletionParamsNonStream &
       TromeroArgs,
     options?: Core.RequestOptions
   ): Core.APIPromise<ChatCompletion>;
-  create(
+  override create(
     body: ChatCompletionCreateParamsStreaming &
       TromeroCompletionParamsStream &
       TromeroArgs,
     options?: Core.RequestOptions
   ): Core.APIPromise<MockStream>;
-  create(
+  override create(
     body: ChatCompletionCreateParamsBase &
       TromeroCompletionParamsBase &
       TromeroArgs,
     options?: Core.RequestOptions
   ): Core.APIPromise<Stream<ChatCompletionChunk> | ChatCompletion>;
-  async create(
+  override async create(
     body: ChatCompletionCreateParams & TromeroCompletionParams & TromeroArgs,
     options?: Core.RequestOptions
   ): Promise<
@@ -483,7 +472,7 @@ class MockCompletions extends openai.OpenAI.Chat.Completions {
       return new MockStream(res, async (response) => {
         if (!saveData && !this.saveDataDefault) return '';
         const dataToSend = {
-          messages: [...messages, response?.choices[0].message],
+          messages: [...messages, response?.choices[0]?.message],
           model: modelNameForLogs,
           kwargs: openAiParams,
           creation_time: new Date().toISOString(),
